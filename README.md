@@ -1,1 +1,1 @@
-# fl_DiverseVul
+# Here is useful snippet of code as a base for new model for detecting vulnerability
