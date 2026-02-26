@@ -1,0 +1,15 @@
+# Model checkpoints
+results/
+logs/
+
+# Dataset
+diversevul*
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# N8N data
+.n8n/
