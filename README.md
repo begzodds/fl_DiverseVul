@@ -20,12 +20,8 @@ fl_DiverseVul/
 ├── requirements.txt          # Python dependencies
 ├── models/
 │   ├── roberta/
-│   │   └── notebook.ipynb    # Training notebook (RoBERTa fine-tuning)
-│   ├── codebert/
-│   │   └── codebert.ipynb    # CodeBERT experiments
-│   └── t5                    # T5 experiments (placeholder)
-├── CodeBERT.pdf              # Reference paper
-└── GraphCodeBERT.pdf         # Reference paper
+└──     └── notebook.ipynb    # Training notebook (RoBERTa fine-tuning)
+
 ```
 
 ---
