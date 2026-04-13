@@ -1,1199 +1,301 @@
-sample_id,true_label,true_label_str,cwe,func_preview,ml_predicted_label,ml_predicted_label_id,ml_confidence,ml_prob_vulnerable,ml_prob_non_vulnerable,ml_correct,llm_agreement,llm_explanation,llm_remediation,error
-1,1,vulnerable,CWE-399,"static void ldap_decode_response(TALLOC_CTX *mem_ctx, 				 struct asn1_data *data, 				 struct ldap_",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of the vulnerability in this function is the use of `asn1_read_OctetString_talloc()` without proper bounds checking. This function reads an arbitrary amount of data from the input buffer, which can lead to a buffer overflow if the input is not properly validated. The risky pattern responsible for this vulnerability is the call to `asn1_read_OctetString_talloc()`, which does not perform any bounds checking on the size of the input buffer.
-
-The potential impact of this vulnerability is that an attacker could exploit it by sending a specially crafted LDAP response that contains a large amount of data, causing a buffer overflow and potentially executing arbitrary code. This could allow the attacker to gain unauthorized access to sensitive information or take control of the system.","To fix this vulnerability, we need to ensure that the input buffer is properly validated before passing it to `asn1_read_OctetString_talloc()`. We can do this by using a function such as `asn1_read_OctetString_bounded()` or `asn1_read_OctetString_size()` which perform bounds checking on the size of the input buffer.
-
-Alternatively, we could use a different encoding scheme that does not require the use of `asn1_read_OctetString_talloc()`, such as using a fixed-length buffer or a dynamic array. This would eliminate the need for bounds checking and prevent the vulnerability altogether.",
-2,0,non-vulnerable,CWE-787,"static void test_strnspn(void) {         size_t len;          len = c_shquote_strnspn(NULL, 0, ""a"");",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"This function contains a vulnerability due to an unchecked buffer overflow. The root cause is the use of `strnspn` without proper bounds checking, which can lead to a buffer overflow if the input string is longer than the specified length. This is a common mistake in C and C++ programming, as many functions that manipulate strings do not perform bounds checking by default.
-
-The risky pattern is the use of `strnspn` without proper bounds checking, which can lead to a buffer overflow if the input string is longer than the specified length. This vulnerability can be exploited by an attacker who controls the input string and can manipulate its length to cause a buffer overflow.
-
-The potential impact of this vulnerability is significant, as it could allow an attacker to execute arbitrary code with the privileges of the program.","To fix this vulnerability, we need to ensure that the input string is properly bounded before passing it to `strnspn`. One way to do this is by using a safer alternative function such as `strncmp` or `memcmp`, which perform bounds checking and can help prevent buffer overflows. Alternatively, we can use a library like OpenSSL that provides safe and secure string manipulation functions.
-
-Here is an example of how the fixed function might look:
-```c
-static void test_strnspn(void) {
-    size_t len;
-
-    len = c_shquote_strncmp(NULL, 0, ""a"");
-    c_assert(len == 0);
-
-    len = c_shquote_strncmp(""a"", 1, """");
-    c_assert(len == 0);
-
-    len = c_shquote_strncmp(""ab"", 2, ""ac"");
-    c_assert(len == 1);
-
-    len = c_shquote_strncmp(""ab"", 2, ""bc"");
-    c_assert(len == 0);
-
-    len = c_shquote_strncmp(""ab"", 2, ""\xff"");
-    c_assert(len == 0);
-}
-```",
-3,0,non-vulnerable,,int ha_partition::check_for_upgrade(HA_CHECK_OPT *check_opt) {   int error= HA_ADMIN_NEEDS_CHECK;   ,non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the vulnerability is the use of user-supplied input in a SQL query without proper sanitization or validation. The function `ha_partition::check_for_upgrade` takes a pointer to a structure called `HA_CHECK_OPT`, which contains a field called `sql_flags`. This field is set by the caller, and it is used to determine whether the function should perform certain checks.
-
-The risky pattern in this function is the use of user-supplied input in a SQL query without proper sanitization or validation. The attacker could potentially manipulate the value of `sql_flags` to execute arbitrary SQL code, leading to a SQL injection vulnerability.
-
-The potential impact of this vulnerability depends on the specific context in which the function is used and the privileges that the user has. However, an attacker who can exploit this vulnerability could potentially gain unauthorized access to sensitive data or perform malicious actions on the system.","To fix this vulnerability, we need to properly sanitize and validate the user-supplied input in the SQL query. One way to do this is by using a prepared statement with parameterized queries, which will automatically escape any special characters in the input and prevent SQL injection attacks.
-
-Here is an example of how the function could be modified to use a prepared statement:
-```c
-int ha_partition::check_for_upgrade(HA_CHECK_OPT *check_opt) {
-  int error = HA_ADMIN_NEEDS_CHECK;
-  DBUG_ENTER(""ha_partition::check_for_upgrade"");
-
-  /* Prepare a prepared statement with the SQL query */
-  char sql[1024];
-  sprintf(sql, ""SELECT * FROM %s WHERE id = ?"", table->alias);
-  MYSQL_STMT *stmt = mysql_stmt_init(conn);
-  if (mysql_stmt_prepare(stmt, sql, strlen(sql)) != 0) {
-    /* Error preparing statement */
-    return error;
-  }
-
-  /* Bind the user-supplied input to the prepared statement */
-  MYSQL_BIND bind[1];
-  bind[0].buffer_type = MYSQL_TYPE_LONG;
-  bind[0].buffer = (void *)&check_opt->sql_flags;
-  if (mysql_stmt_bind_param(stmt, bind) != 0) {
-    /* Error binding parameters */
-    return error;
-  }
-
-  /* Execute the prepared statement and fetch the results */
-  if (mysql_stmt_execute(stmt) != 0) {
-    /* Error executing statement */
-    return error;
-  }
-  MYSQL_RES *result = mysql_stmt_result_metadata(stmt);
-  if (!result) {
-    /* Error fetching results */
-    return error;
-  }
-
-  /* Process the results of the query */
-  while (mysql_fetch_row(result)) {
-    // ...
-  }
-
-  /* Clean up and return */
-  mysql_free_result(result);
-  mysql_stmt_close(stmt);
-  DBUG_RETURN(error);
-}
-```
-In this example, we first prepare a prepared statement with the SQL query. We then bind the user-supplied input to the prepared statement using `mysql_stmt_bind_param`. Finally, we execute the prepared statement and fetch the results using `mysql_stmt_execute` and `mysql_fetch_row`, respectively.
-
-By properly sanitizing and validating the user-supplied input in this way, we can prevent SQL injection attacks and ensure that the function is secure.",
-4,0,non-vulnerable,CWE-415,void uECC_set_rng(uECC_RNG_Function rng_function) {     g_rng_function = rng_function; },non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the potential vulnerability in this function is the use of a global variable `g_rng_function` to store the random number generation function pointer. This global variable can be modified by any part of the program, potentially leading to unexpected behavior or security issues.
-
-The risky pattern in this function is the use of a global variable that can be modified by any part of the program. This makes it difficult to reason about the behavior of the function and could lead to unintended consequences.
-
-Potential impact: An attacker could exploit this vulnerability by modifying the value of `g_rng_function` to point to a malicious function that generates predictable random numbers, allowing an attacker to gain unauthorized access or control over the program's behavior.","To fix this vulnerability, we can use a local variable instead of a global one. This will limit the scope of the variable and make it more difficult for an attacker to modify its value. We can also consider using a different approach to random number generation, such as using a secure random number generator library or generating random numbers using a cryptographically secure method.
-
-Here is a corrected version of the function that uses a local variable instead of a global one:
-```c
-void uECC_set_rng(uECC_RNG_Function rng_function) {
-    static uECC_RNG_Function g_rng_function = NULL;
-    g_rng_function = rng_function;
-}
-```",
-5,1,vulnerable,CWE-119,"lyd_dup_to_ctx(const struct lyd_node *node, int options, struct ly_ctx *ctx) {     struct ly_ctx *lo",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of the vulnerability is the use of the `lyd_dup_node()` function without proper validation of its input parameters. This function can be used to create a duplicate of a given node, but it does not perform any checks on the validity of the source node or the target context. An attacker could potentially provide malicious input to this function, leading to a vulnerability.
-
-The risky pattern is the use of `lyd_dup_node()` without proper validation of its input parameters. This could lead to an attacker creating a duplicate of a node with arbitrary data, which could then be used for further attacks.
-
-The potential impact of this vulnerability would depend on the specific context in which it is used and the privileges of the user who is executing the code. However, in general, an attacker could potentially use this vulnerability to gain unauthorized access to sensitive data or to execute malicious actions on behalf of a victim.","To fix this vulnerability, we would need to perform proper validation of the input parameters to `lyd_dup_node()`. This could involve checking that the source node is valid and that the target context is properly initialized before calling the function. Additionally, we may need to ensure that any data passed to the function is properly sanitized to prevent potential attacks.
-
-Alternatively, we could consider using a different function for creating duplicates of nodes, such as `lyd_dup()`, which performs additional checks on the validity of the source node and the target context.",
-6,0,non-vulnerable,,"zzip_mem_disk_fread(void *ptr, _zzip_size_t size, _zzip_size_t nmemb,                     ZZIP_MEM_D",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the vulnerability is the use of the `zzip_disk_fread` function without proper bounds checking on the input parameters. The `zzip_disk_fread` function is a wrapper around the standard C library's `fread` function, but it does not perform any bounds checking on the input parameters. This means that an attacker can potentially provide a large value for the `size` parameter, causing the function to write beyond the end of the allocated memory region and potentially overwriting sensitive data or executing malicious code.
-
-The risky pattern is the use of the `zzip_disk_fread` function without proper bounds checking on the input parameters. This allows an attacker to potentially exploit the vulnerability by providing a large value for the `size` parameter, causing the function to write beyond the end of the allocated memory region and potentially overwriting sensitive data or executing malicious code.
-
-The potential impact is significant, as an attacker could potentially gain unauthorized access to sensitive data or execute malicious code on the system. This could lead to a range of security vulnerabilities, including data breaches, privilege escalation, and denial of service attacks.","To fix this vulnerability, we can use a technique called ""bounds checking"" to ensure that the `size` parameter is within the bounds of the allocated memory region. This can be done by adding a check for the size of the buffer before calling the `zzip_disk_fread` function, as follows:
-```c
-if (size > file->buffer_size) {
-    return -1; // error code indicating buffer overflow
-}
-return zzip_disk_fread(ptr, size, nmemb, file);
-```
-This check ensures that the `size` parameter is within the bounds of the allocated memory region, preventing an attacker from exploiting the vulnerability by providing a large value for the `size` parameter.",
-7,0,non-vulnerable,CWE-703,"HTTP_Clone(struct http *to, const struct http * const fm) {  	HTTP_Dup(to, fm); 	to->vsl = fm->vsl; ",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the vulnerability is the use of the `HTTP_Dup` function, which does not check the length of the input string before copying it into the output buffer. This can lead to a buffer overflow if the input string is longer than the size of the output buffer. The risky pattern is the call to `HTTP_Dup`, as it does not perform any bounds checking on the input string.
-
-The potential impact of this vulnerability is that an attacker could exploit it by sending a maliciously crafted HTTP request that contains a long string, which would cause the buffer overflow and potentially allow for code execution or data tampering.","To fix this vulnerability, we need to ensure that the length of the input string is checked before copying it into the output buffer. One way to do this is by using a safer function like `strncpy` instead of `HTTP_Dup`. Alternatively, we can use a bounds-checking library like `snprintf` or `sprintf` to ensure that the length of the input string does not exceed the size of the output buffer.
-
-Here's an example of how the function could be modified to fix this vulnerability:
-```c
-HTTP_Clone(struct http *to, const struct http * const fm)
-{
-    // Check the length of the input string before copying it into the output buffer
-    if (strlen(fm->vsl) > sizeof(to->vsl)) {
-        return -1;
-    }
-
-    HTTP_Dup(to, fm);
-    to->ws = fm->ws;
-}
-```",
-8,0,non-vulnerable,"CWE-20, CWE-362, CWE-416","static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *link) { 	int res = 0;",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the vulnerability in this function is the use of a static buffer for storing the name of the last component of the path. The `strcpy` operation at line 17 can overflow this buffer, leading to a buffer overflow vulnerability. This is a classic example of a ""TOCTOU"" (Time Of Check, Time Of Use) race condition.
-
-The risky pattern in this function is the use of the `strcpy` function without proper bounds checking. The `strcpy` function does not check whether the destination buffer is large enough to hold the copied string, and it can lead to a buffer overflow if the source string is too long. This vulnerability can be exploited by an attacker who controls the input to this function.
-
-The potential impact of this vulnerability is significant. An attacker could use this vulnerability to execute arbitrary code in the context of the process, leading to complete control over the system.","To fix this vulnerability, we need to ensure that the buffer used for storing the name of the last component is large enough to hold any possible input. We can do this by using a dynamic buffer allocation function such as `malloc` or `calloc`. Additionally, we should use proper bounds checking when copying strings to prevent buffer overflows.
-
-Here is an example of how the fixed function could look like:
-```c
-static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *link) {
-    int res = 0;
-    char *name;
-    if (IS_ERR(link))
-        goto fail;
-
-    if (*link == '/') {
-        set_root(nd);
-        path_put(&nd->path);
-        nd->path = nd->root;
-        path_get(&nd->root);
-    }
-
-    res = link_path_walk(link, nd);
-    if (nd->depth || res || nd->last_type!=LAST_NORM)
-        return res;
-
-    name = malloc(strlen(nd->last.name) + 1);
-    if (!name) {
-        path_put(&nd->path);
-        return -ENOMEM;
-    }
-    strcpy(name, nd->last.name);
-    nd->last.name = name;
-    return 0;
-fail:
-    path_put(&nd->path);
-    return PTR_ERR(link);
-}
-```",
-9,0,non-vulnerable,CWE-200,"		static void customcodecvt_do_conversion( std::mbstate_t& /*state*/, 			const char_t_from* from, 		",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the vulnerability is the use of a `std::mbstate_t` object as an argument to the `customcodecvt_do_conversion` function. This object is used to store the state of the conversion process, but it is not properly initialized or checked for validity before being used. An attacker could potentially exploit this by providing a maliciously crafted input that causes the `mbstate_t` object to become corrupted, leading to unexpected behavior and potential security vulnerabilities.
-
-The risky pattern in this function is the use of the `impl_type_from::read()` method to read from the `char_t_from*` pointer, which could potentially cause a buffer overflow if the input data is not properly validated or checked for bounds. Additionally, the `impl_type_to::write()` method used in the loop body could also be vulnerable to a similar issue.
-
-The potential impact of this vulnerability depends on the specific use case and the nature of the input data being converted. However, an attacker could potentially exploit this vulnerability by providing maliciously crafted input that causes the `mbstate_t` object to become corrupted, leading to unexpected behavior and potential security vulnerabilities.","To fix this vulnerability, we need to properly initialize and check the `std::mbstate_t` object before using it in the conversion process. We can do this by adding a new argument to the function signature that specifies the initial state of the `mbstate_t` object, and then checking for validity before using it in the loop body. Additionally, we should validate the input data to ensure that it is properly bounded and does not cause buffer overflows when read from the `char_t_from*` pointer.
-
-Here is an example of how this fix could be implemented:
-```c++
-static void customcodecvt_do_conversion(std::mbstate_t& state, const char_t_from* from, const char_t_from* from_end, const char_t_from*& from_next, char_t_to* to, char_t_to* to_end, char_t_to*& to_next)
-{
-    // Initialize the mbstate_t object with a valid state
-    std::mbstate_t initial_state = {0};
-    if (state != initial_state)
-    {
-        throw std::invalid_argument(""Invalid mbstate_t object"");
-    }
-
-    // Validate the input data to ensure it is properly bounded
-    if (from == nullptr || from_end == nullptr || from_next == nullptr || to == nullptr || to_end == nullptr || to_next == nullptr)
-    {
-        throw std::invalid_argument(""Invalid input data"");
-    }
-
-    // Perform the conversion using the validated mbstate_t object and input data
-    typedef typename ucs4_convert_impl::convert_impl<char_t_from>::type impl_type_from;
-    typedef typename ucs4_convert_impl::convert_impl<char_t_to>::type impl_type_to;
-
-    from_next = from;
-    to_next = to;
-    customcodecvt_do_conversion_writer<char_t_to> writer(to_next, to_end);
-    while (from_next != from_end)
-    {
-        impl_type_to::write(writer, impl_type_from::read(from_next, from_end));
-    }
-}
-```",
-10,1,vulnerable,CWE-120,ipmi_sdr_print_sensor_fru_locator(struct sdr_record_fru_locator *fru) { 	char desc[17];  	memset(des,non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of the potential vulnerability in this function is the use of the `snprintf` function without proper bounds checking. The `snprintf` function can be used to write data into a buffer, and if the buffer size is not properly checked, it can lead to buffer overflows or other security issues.
-
-The risky pattern in this function is the use of the `snprintf` function without proper bounds checking. This can lead to a buffer overflow vulnerability if an attacker is able to control the input data and exceed the size of the destination buffer.
-
-Potential impact: An attacker could exploit this vulnerability by sending malicious input that exceeds the size of the destination buffer, leading to a buffer overflow and potentially allowing for code execution or other security issues.","To fix this vulnerability, we need to ensure that the `snprintf` function is used with proper bounds checking. This can be done by using the `snprintf_s` function from the C11 standard library, which provides a safer and more secure alternative to `snprintf`. Alternatively, we can use a custom implementation of `snprintf` that includes bounds checking and other security features.
-
-Here is an example of how to fix this vulnerability using `snprintf_s`:
-```c
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-int ipmi_sdr_print_sensor_fru_locator(struct sdr_record_fru_locator *fru) {
-    char desc[17];
-
-    memset(desc, 0, sizeof (desc));
-    snprintf_s(desc, (fru->id_code & 0x1f) + 1, ""%s"", fru->id_string);
-
-    if (!verbose) {
-        if (csv_output)
-            printf(""%s,00h,ns,%d.%d\n"",
-                   fru->id_code ? desc : """",
-                   fru->entity.id, fru->entity.instance);
-        else if (sdr_extended)
-            printf(""%-16s | 00h | ns  | %2d.%1d | %s FRU @%02Xh\n"",
-                   fru->id_code ? desc : """",
-                   fru->entity.id, fru->entity.instance,
-                   (fru->logical) ? ""Logical"" : ""Physical"",
-                   fru->device_id);
-        else
-            printf(""%-16s | %s FRU @%02Xh %02x.%x | ok\n"",
-                   fru->id_code ? desc : """",
-                   (fru->logical) ? ""Log"" : ""Phy"",
-                   fru->device_id,
-                   fru->entity.id, fru->entity.instance);
-
-        return 0;
-    }
-
-    printf(""Device ID              : %s\n"", fru->id_string);
-    printf(""Entity ID              : %d.%d (%s)\n"",
-           fru->entity.id, fru->entity.instance,
-           val2str(fru->entity.id, entity_id_vals));
-
-    printf(""Device Access Address  : %02Xh\n"", fru->dev_slave_addr);
-    printf(""%s: %02Xh\n"",
-           fru->logical ? ""Logical FRU Device     "" :
-           ""Slave Address          "", fru->device_id);
-    printf(""Channel Number         : %01Xh\n"", fru->channel_num);
-    printf(""LUN.Bus                : %01Xh.%01Xh\n"", fru->lun, fru->bus);
-    printf(""Device Type.Modifier   : %01Xh.%01Xh (%s)\n"",
-           fru->dev_type, fru->dev_type_modifier,
-           val2str(fru->dev_type << 8 | f",
-11,1,vulnerable,"CWE-703, CWE-189","static ssize_t lbs_debugfs_write(struct file *f, const char __user *buf, 			    size_t cnt, loff_t *",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of the vulnerability is the use of `strstr()` and `strchr()` functions without proper bounds checking. These functions return a pointer to the first occurrence of the substring or character in the input string, respectively. However, they do not check whether the returned pointer falls within the bounds of the input string, which can lead to buffer overflows or other security issues.
-
-The risky pattern is the use of `strchr()` and `strstr()` functions without proper bounds checking, as well as the subsequent use of the returned pointers to access memory outside of the allocated buffer. This allows an attacker to manipulate the input string in a way that can lead to arbitrary code execution or other security breaches.
-
-The potential impact of this vulnerability is significant, as it could allow an attacker to execute malicious code with the privileges of the program, potentially leading to complete compromise of the system.","To fix this vulnerability, we need to ensure that all string operations are performed within the bounds of the allocated buffer. This can be achieved by using safer alternatives such as `strnstr()` and `strncpy()`, which perform bounds checking on the input strings. Additionally, we should use a memory safe language feature like `std::string` in C++ to prevent buffer overflows.
-
-Here is an example of how the function can be rewritten to fix this vulnerability:
-```c
-static ssize_t lbs_debugfs_write(struct file *f, const char __user *buf, size_t cnt, loff_t *ppos) {
-    int r, i;
-    char *pdata;
-    char *p0;
-    struct debug_data *d = f->private_data;
-
-    pdata = kmalloc(cnt, GFP_KERNEL);
-    if (pdata == NULL) {
-        return 0;
-    }
-
-    if (copy_from_user(pdata, buf, cnt)) {
-        lbs_deb_debugfs(""Copy from user failed\n"");
-        kfree(pdata);
-        return 0;
-    }
-
-    p0 = pdata;
-    for (i = 0; i < num_of_items; i++) {
-        char *p1, *p2;
-        r = simple_strtoul(p0 + d[i].name, NULL, 0);
-        if (d[i].size == 1) {
-            *((u8 *) d[i].addr) = (u8) r;
-        } else if (d[i].size == 2) {
-            *((u16 *) d[i].addr) = (u16) r;
-        } else if (d[i].size == 4) {
-            *((u32 *) d[i].addr) = (u32) r;
-        } else if (d[i].size == 8) {
-            *((u64 *) d[i].addr) = (u64) r;
-        }
-    }
-    kfree(pdata);
-
-    return (ssize_t)cnt;
-}
-```
-In this rewritten version, we use `strnstr()` and `strncpy()` functions to perform bounds checking on the input strings. We also use a memory safe language feature like `std::string` in C++ to prevent buffer overflows. Additionally, we have removed the unnecessary use of `strchr()` function as it is not needed in this context.",
-12,1,vulnerable,,void ssl3_free(SSL *s) 	{ 	if(s == NULL) 	    return;  #ifdef TLSEXT_TYPE_opaque_prf_input 	if (s->s,non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"This function is vulnerable to a buffer overflow attack due to the use of `OPENSSL_free` without proper bounds checking. The root cause is the use of `OPENSSL_free` on untrusted data, which can lead to an attacker controlling the size of the buffer being freed. This can result in a buffer overflow if the attacker supplies a large value for the buffer size.
-The risky pattern is the use of `OPENSSL_free` without proper bounds checking, and the potential impact is that an attacker could exploit this vulnerability to execute arbitrary code or cause a denial-of-service attack.","To fix this vulnerability, we need to ensure that the buffer size being freed is properly bounded. One way to do this is by using a safer version of `OPENSSL_free` that takes a length parameter and checks it against the actual length of the buffer being freed. Another option is to use a memory safe language like Rust, which provides built-in memory safety features.
-Alternatively, we can also use a tool like Valgrind or AddressSanitizer to detect this type of vulnerability at runtime.",
-13,0,non-vulnerable,"CWE-476, CWE-190","mt_put(mrb_state *mrb, mt_tbl *t, mrb_sym sym, size_t func_p, size_t noarg_p, union mt_ptr ptr) {   ",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of this vulnerability is the use of unsafe string manipulation functions without proper bounds checking. The function `mt_put()` takes a pointer to a `mrb_state` structure as an argument, which contains a member variable called `sym`. This member variable is used to store a symbolic name for the key in the hash table. However, the function does not perform any validation on this symbolic name before using it with unsafe string manipulation functions like `strcpy()` and `strcat()`.
-
-The risky pattern in this function is the use of these unsafe string manipulation functions without proper bounds checking. The function assumes that the source string passed to these functions will always be null-terminated, but there is no guarantee that this will always be the case. If an attacker can control the value of `sym`, they could potentially pass a string that is not null-terminated, leading to a buffer overflow vulnerability.
-
-The potential impact of this vulnerability depends on how the function is used in the larger program. However, it is possible for an attacker to exploit this vulnerability by passing a crafted `sym` value that causes the buffer overflow. This could lead to code execution or other security vulnerabilities, depending on the specific context in which the function is used.","To fix this vulnerability, it would be necessary to perform bounds checking on the source string passed to `strcpy()` and `strcat()`. This could be done by using safer alternatives like `memcpy()` or `strncpy()`, which can handle null-terminated strings with proper bounds checking. Additionally, it may be necessary to validate the length of the source string before passing it to these functions to ensure that it is not too long for the destination buffer.
-
-Here is an example of how this function could be modified to perform bounds checking:
-```c
-mt_put(mrb_state *mrb, mt_tbl *t, mrb_sym sym, size_t func_p, size_t noarg_p, union mt_ptr ptr) {
-  size_t hash, pos, start;
-  struct mt_elem *dslot = NULL;
-
-  if (t->alloc == 0) {
-    mt_rehash(mrb, t);
-  }
-  hash = kh_int_hash_func(mrb, sym);
-  start = pos = hash & (t->alloc-1);
-  for (;;) {
-    struct mt_elem *slot = &t->table[pos];
-
-    if (slot->key == sym) {
-      slot->func_p = func_p;
-      slot->noarg_p = noarg_p;
-      slot->ptr = ptr;
-      return slot;
-    }
-    else if (slot->key == 0) {  /* empty or deleted */
-      if (slot->func_p == 0) {  /* empty */
-        t->size++;
-        slot->key = sym;
-        slot->func_p = func_p;
-        slot->noarg_p = noarg_p;
-        slot->ptr = ptr;
-        return slot;
-      }
-      else if (!dslot) {        /* deleted */
-        dslot = slot;
-      }
-    }
-    pos = (pos+1) & (t->alloc-1);
-    if (pos == start) {         /* not found */
-      if (dslot) {
-        t->size++;
-        dslot->key = sym;
-        dslot->func_p = func_p;
-        dslot->noarg_p = noarg_p;
-        dslot->ptr = ptr;
-        return dslot;
-      }
-      /* no room */
-      mt_rehash(mrb, t);
-      start = pos = hash & (t->alloc-1);
-    }
-  }
-}
-```",
-14,1,vulnerable,CWE-119,xmlParseEncodingDecl(xmlParserCtxtPtr ctxt) {     xmlChar *encoding = NULL;      SKIP_BLANKS;     if,non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of the vulnerability in this function is a lack of input validation. The `encoding` variable is set based on user-supplied input, but it is not properly sanitized or validated before being used. This allows an attacker to supply malicious input that could lead to a buffer overflow or other security issues.
-The risky pattern in this function is the use of `xmlParseEncName()`, which does not validate the encoding name passed to it. An attacker could potentially pass a maliciously crafted encoding name that would cause the function to crash or execute arbitrary code.
-Potential impact: An attacker could exploit this vulnerability to gain unauthorized access to sensitive data, disrupt system operations, or cause a denial-of-service condition.","To fix this vulnerability, we must validate the encoding name passed to `xmlParseEncName()` and ensure that it is a valid encoding name. We can do this by using a whitelist of allowed encoding names or by checking for specific encoding patterns. Additionally, we should also sanitize any user-supplied input before passing it to `xmlParseEncName()`.
-Here's an example of how the function could be modified:
-```c
-xmlChar *encoding = NULL;
-
-SKIP_BLANKS;
-if (CMP8(CUR_PTR, 'e', 'n', 'c', 'o', 'd', 'i', 'n', 'g')) {
-    SKIP(8);
-    SKIP_BLANKS;
-    if (RAW != '=') {
-        xmlFatalErr(ctxt, XML_ERR_EQUAL_REQUIRED, NULL);
-        return(NULL);
-    }
-    NEXT;
-    SKIP_BLANKS;
-    encoding = xmlParseEncName(ctxt);
-    if (encoding == NULL) {
-        xmlFatalErrMsgStr(ctxt, XML_ERR_INVALID_ENCODING, ""Invalid encoding name: %s\n"", encoding);
-        return(NULL);
-    }
-    /* Validate the encoding name */
-    if (!isValidEncodingName(encoding)) {
-        xmlFatalErrMsgStr(ctxt, XML_ERR_INVALID_ENCODING, ""Invalid encoding name: %s\n"", encoding);
-        return(NULL);
-    }
-    /* Sanitize the user-supplied input */
-    sanitizeInput(encoding);
-}
-```",
-15,1,vulnerable,"CWE-20, CWE-125","parse_toshiba_packet(FILE_T fh, struct wtap_pkthdr *phdr, Buffer *buf,     int *err, gchar **err_inf",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of the vulnerability is the use of `sscanf()` without proper validation of input data. The function uses `sscanf()` to parse a line from a file, which could potentially contain malicious data that could be used to exploit the function's intended functionality.
-
-The risky pattern is the use of `sscanf()` with uncontrolled format strings, which allows an attacker to inject arbitrary data into the program and potentially execute arbitrary code. This vulnerability can be exploited by an attacker who has access to the file being parsed or who can manipulate the input data in some way.
-
-The potential impact of this vulnerability is significant, as it could allow an attacker to execute arbitrary code with the same privileges as the program's owner. This could potentially lead to a range of attacks, including data exfiltration, data tampering, and even remote code execution.","To fix this vulnerability, we need to validate the input data before passing it to `sscanf()`. We can do this by using a whitelist of allowed characters in the format string, or by using a regular expression to match the expected pattern. Additionally, we should consider using a safer alternative to `sscanf()`, such as `strtol()` or `strtoul()`, which provide more control over the input data and are less vulnerable to format string attacks.
-
-Here is an example of how the function could be modified to fix this vulnerability:
-```c
-int parse_toshiba_packet(FILE *fh, struct wtap_pkthdr *phdr, Buffer *buf, int *err, gchar **err_info) {
-    union wtap_pseudo_header *pseudo_header = &phdr->pseudo_header;
-    char line[TOSHIBA_LINE_LENGTH];
-    int num_items_scanned;
-    int pkt_len, pktnum, hr, min, sec, csec;
-    char channel[10], direction[10];
-    int i, hex_lines;
-    guint8 *pd;
-
-    // Our file pointer should be on the line containing the
-    // summary information for a packet. Read in that line and
-    // extract the useful information
-    if (file_gets(line, TOSHIBA_LINE_LENGTH, fh) == NULL) {
-        *err = file_error(fh, err_info);
-        if (*err == 0) {
-            *err = WTAP_ERR_SHORT_READ;
-        }
-        return FALSE;
-    }
-
-    // Find text in line after ""[No."". Limit the length of the
-    // two strings since we have fixed buffers for channel[] and
-    // direction[]. Use a whitelist of allowed characters to prevent
-    // format string attacks.
-    num_items_scanned = sscanf(line, ""%9d] %2d:%2d:%2d.%9d %10s %10s"",
-                                &pktnum, &hr, &min, &sec, &csec, channel, direction);
-
-    if (num_items_scanned != 7) {
-        *err = WTAP_ERR_BAD_FILE;
-        *err_info = g_strdup(""toshiba: record header isn't valid"");
-        return FALSE;
-    }
-
-    // Scan lines until we find the OFFSET line. In a ""telnet"" trace,
-    // this will be the next line. But if you save your telnet session
-    // to a file from within a Windows-based telnet client, it may
-    // put in line breaks at 80 columns (or however big your ""telnet"" box
-    // is). CRT (a Windows telnet app from VanDyke) does this.
-    // Here we assume that 80 columns will be the minimum size, and that
-    // the OFFSET line is not broken in the middle. It's the previous
-    // line that is normally long and can thus be broken at column 80.
-    do {
-        if (file_gets(line, TOS",
-16,1,vulnerable,CWE-787,QUtil::get_current_time() { #ifdef _WIN32     // The procedure to get local time at this resolution ,non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of the vulnerability is the use of the `GetSystemTime()` function from the Windows API, which returns the current system time in a `SYSTEMTIME` structure. This structure contains the year, month, day, hour, minute, second, and millisecond components of the current time. However, the `GetSystemTime()` function does not validate the input parameters, which allows an attacker to manipulate the return value by providing invalid values for these parameters.
-
-The risky pattern is the use of the `GetSystemTime()` function without proper validation of its input parameters. This can lead to a buffer overflow or other security vulnerabilities if the attacker is able to provide malicious input values.
-
-Potential impact: An attacker could exploit this vulnerability by providing invalid input values to the `GetSystemTime()` function, which could result in a buffer overflow or other security vulnerabilities. This could potentially allow an attacker to execute arbitrary code with elevated privileges, leading to a serious security breach.","To fix this vulnerability, we need to validate the input parameters of the `GetSystemTime()` function and ensure that they are within the valid range. We can do this by checking the values of the year, month, day, hour, minute, second, and millisecond components against their respective minimum and maximum values.
-
-Here is a corrected version of the function in C/C++:
-```c
-#ifdef _WIN32
-    // The procedure to get local time at this resolution comes from
-    // the Microsoft documentation.  It says to convert a SYSTEMTIME
-    // to a FILETIME, and to copy the FILETIME to a ULARGE_INTEGER.
-    // The resulting number is the number of 100-nanosecond intervals
-    // between January 1, 1601 and now.  POSIX threads wants a time
-    // based on January 1, 1970, so we adjust by subtracting the
-    // number of seconds in that time period from the result we get
-    // here.
-    SYSTEMTIME sysnow;
-    GetSystemTime(&sysnow);
-    FILETIME filenow;
-    SystemTimeToFileTime(&sysnow, &filenow);
-    ULARGE_INTEGER uinow;
-    uinow.LowPart = filenow.dwLowDateTime;
-    uinow.HighPart = filenow.dwHighDateTime;
-    ULONGLONG now = uinow.QuadPart;
-    
-    // Validate the input parameters
-    if (sysnow.wYear < 1601 || sysnow.wMonth < 1 || sysnow.wDay < 1 || sysnow.wHour < 0 || sysnow.wMinute < 0 || sysnow.wSecond < 0 || sysnow.wMilliseconds < 0) {
-        // Invalid input parameters, return an error code
-        return -1;
-    }
-    
-    // Adjust the time to be based on January 1, 1970
-    now -= 11644473600LL;
-    return (now / 10000000LL);
-#else
-    return time(0);
-#endif
-```",
-17,0,non-vulnerable,CWE-119,"int isdn_msncmp( const char * msn1, const char * msn2 ) { 	char TmpMsn1[ ISDN_MSNLEN ]; 	char TmpMsn",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the vulnerability in this function is the use of a user-supplied input, `msn1` and `msn2`, without proper validation or sanitization. These inputs are used directly in the `isdn_wildmat()` function, which can lead to a buffer overflow if the input string is longer than the expected length.
-
-The risky pattern responsible for this vulnerability is the use of unchecked user-supplied input in the `for` loops that strip off the SPID from the input strings. The `for` loops do not check whether the input strings are null-terminated, which can lead to a buffer overflow if the input string is longer than expected.
-
-The potential impact of this vulnerability is significant, as an attacker could exploit it to cause a denial of service (DoS) or execute arbitrary code on the system.","To remediate this vulnerability, we need to validate and sanitize the user-supplied input before using it in the `isdn_wildmat()` function. We can use a combination of `strlen()`, `memcpy()`, and `strcmp()` functions to ensure that the input strings are validated and sanitized properly.
-
-Here is an example of how we can modify the function to address this vulnerability:
-```c
-int isdn_msncmp(const char *msn1, const char *msn2) {
-    // Validate and sanitize the input strings
-    if (strlen(msn1) > ISDN_MSNLEN || strlen(msn2) > ISDN_MSNLEN) {
-        return -1;  // Invalid input string length
-    }
-
-    char TmpMsn1[ISDN_MSNLEN];
-    memcpy(TmpMsn1, msn1, strlen(msn1));
-    TmpMsn1[strlen(msn1)] = '\0';  // Null-terminate the string
-
-    char TmpMsn2[ISDN_MSNLEN];
-    memcpy(TmpMsn2, msn2, strlen(msn2));
-    TmpMsn2[strlen(msn2)] = '\0';  // Null-terminate the string
-
-    return isdn_wildmat(TmpMsn1, TmpMsn2);
-}
-```
-In this modified version of the function, we first validate and sanitize the input strings by checking their length using `strlen()`. If either string is longer than the expected length, we return an error code to indicate that the input is invalid.
-
-We then use `memcpy()` to copy the validated input strings into the temporary buffers `TmpMsn1` and `TmpMsn2`. We null-terminate each buffer using `strlen()` to ensure that they are properly terminated.
-
-Finally, we call the `isdn_wildmat()` function with the sanitized input strings as arguments. This ensures that any potential vulnerabilities in this function are mitigated by proper validation and sanitization of user-supplied input.",
-18,0,non-vulnerable,"CWE-416, CWE-703","  uchar *pack(uchar* to, const uchar *from,               uint max_length __attribute__((unused)))  ",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the vulnerability is the use of an unchecked `max_length` parameter in the `pack_int32()` function. This parameter is not properly validated, which allows an attacker to specify a large value that exceeds the size of the destination buffer, leading to a buffer overflow.
-
-The risky pattern is the use of an unchecked `max_length` parameter in the `pack_int32()` function. This parameter is not properly validated, which allows an attacker to specify a large value that exceeds the size of the destination buffer, leading to a buffer overflow.
-
-Potential impact: An attacker could exploit this vulnerability by specifying a large value for `max_length` in order to overflow the destination buffer and execute arbitrary code. This could lead to a range of security issues, including data leakage, data tampering, or even code execution with elevated privileges.","To fix this vulnerability, we need to properly validate the `max_length` parameter in the `pack_int32()` function. This can be done by checking that the value of `max_length` is less than or equal to the size of the destination buffer, and raising an error if it exceeds the limit.
-
-Here's a corrected version of the function:
-```c
-uchar *pack(uchar* to, const uchar *from, uint max_length) {
-    // Check that `max_length` is less than or equal to the size of the destination buffer
-    if (max_length > sizeof(to)) {
-        return NULL;
-    }
-    return pack_int32(to, from);
-}
-```
-In this version of the function, we check that `max_length` is less than or equal to the size of the destination buffer. If it exceeds the limit, we raise an error and return `NULL`. This ensures that the `pack_int32()` function will not overflow the destination buffer, preventing the vulnerability from occurring.",
-19,0,non-vulnerable,CWE-787,"line_and_point(unsigned int x, unsigned int y, int number) {     /* temporary(?) kludge to allow ter",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of this vulnerability is the use of an unchecked `number` parameter in the `do_point()` function call. This parameter is not properly validated or checked for bounds, allowing an attacker to potentially exploit it by setting a large value that exceeds the buffer size.
-
-The risky pattern responsible for this vulnerability is the use of an unchecked `number` parameter in the `do_point()` function call. This parameter could be set to a large value, causing the buffer overflow.
-
-Potential impact: An attacker could potentially exploit this vulnerability by setting a large value for the `number` parameter, causing a buffer overflow and potentially executing arbitrary code with the privileges of the affected process.","To fix this vulnerability, we can add bounds checking to ensure that the `number` parameter is within the expected range. We can also use a safer alternative such as `snprintf()` instead of `sprintf()` to prevent buffer overflow attacks.
-
-Here's an example of how we can modify the function to fix this vulnerability:
-```c
-line_and_point(unsigned int x, unsigned int y, int number) {
-    /* temporary(?) kludge to allow terminals with bad linetypes
-       to make nice marks */
-
-    (*term->linetype) (NICE_LINE);
-    do_point(x, y, number);
-}
-```
-becomes:
-```c
-line_and_point(unsigned int x, unsigned int y, int number) {
-    /* temporary(?) kludge to allow terminals with bad linetypes
-       to make nice marks */
-
-    if (number < 0 || number > MAX_NUMBER) {
-        return; // invalid input, do nothing
-    }
-
-    (*term->linetype) (NICE_LINE);
-    do_point(x, y, number);
-}
-```
-In this modified version of the function, we've added bounds checking to ensure that the `number` parameter is within the expected range. We've also used a safer alternative such as `snprintf()` instead of `sprintf()` to prevent buffer overflow attacks.",
-20,1,vulnerable,CWE-200,static int map_modify_do_local(struct map_context *ac) { 	struct ldb_request *local_req; 	struct ldb,non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of the vulnerability is the use of `ldb_msg_add_linearized_dn`, which takes a DN value as input and adds it to the message. This function does not perform any validation or bounds checking on the length of the DN, allowing an attacker to supply a specially crafted DN that exceeds the size of the buffer allocated for the message.
-
-The risky pattern is the use of `ldb_msg_add_linearized_dn` without proper input validation, which can lead to a heap-based buffer overflow.
-
-Potential impact: An attacker could exploit this vulnerability by supplying a specially crafted DN value that causes a buffer overflow, leading to code execution with the privileges of the affected process.","To fix this vulnerability, we need to ensure that the input supplied to `ldb_msg_add_linearized_dn` is properly validated and bounds-checked. One possible solution is to use a safer alternative function such as `ldb_msg_add_string`, which takes a string value as input and adds it to the message, but does not perform any validation or bounds checking on the length of the string.
-
-Another solution is to use a memory-safe alternative function such as `ldb_msg_add_linearized_dn_safe` which performs proper input validation and bounds checking on the length of the DN value before adding it to the message.",
-21,1,vulnerable,CWE-125,"PHP_FUNCTION( locale_get_script )  { 	get_icu_value_src_php( LOC_SCRIPT_TAG , INTERNAL_FUNCTION_PARA",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of the potential vulnerability is the use of the `get_icu_value_src_php` function, which retrieves a value from the ICU (International Components for Unicode) library. This function can be exploited by an attacker to execute arbitrary code on the system.
-The risky pattern in this function is the call to the `get_icu_value_src_php` function without proper input validation, which could lead to a buffer overflow or other security issues.
-The potential impact of this vulnerability is that an attacker could use it to execute arbitrary code on the system, potentially leading to unauthorized access to sensitive data or system resources.","To fix this vulnerability, we need to properly validate the input passed to the `get_icu_value_src_php` function and ensure that it is not exploitable by an attacker. One possible solution is to use a safer alternative to the `get_icu_value_src_php` function, such as the `get_icu_value_safe` function from the ICU library, which provides more robust input validation and mitigation against buffer overflow attacks.
-Alternatively, we could also consider using a different programming language or framework that is better suited for web development and has built-in security features to prevent similar vulnerabilities.",
-22,1,vulnerable,CWE-787,"static const ut8 *parse_die(const ut8 *buf, const ut8 *buf_end, RzBinDwarfDebugInfo *info, RzBinDwar",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of the potential vulnerability lies in the use of the `strdup` function to create a copy of the `comp_dir` string. This function can be used to exploit a buffer overflow vulnerability if the input string is too long, as it does not perform any bounds checking. The risky pattern is the use of this function without proper validation or bounds checking, which could lead to an attacker being able to write data outside the intended memory boundaries and potentially execute malicious code.
-
-The potential impact of this vulnerability depends on the specific context in which it is used. If the `comp_dir` string contains user-supplied input, an attacker could use this vulnerability to inject malicious code into the program's memory space, potentially leading to a security breach or other unintended consequences.","To fix this vulnerability, it is recommended that the `strdup` function be replaced with a safer alternative such as `strndup`, which performs bounds checking on the input string and ensures that the output buffer is not overrun. Alternatively, the use of `strdup` could be avoided altogether by using other functions to perform the necessary memory allocation and copying operations.",
-23,1,vulnerable,CWE-119,"xmlXPtrNewRangeNodeObject(xmlNodePtr start, xmlXPathObjectPtr end) {     xmlXPathObjectPtr ret;     ",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of this vulnerability is the use of `xmlXPtrNewRangeNodeObject()` in combination with the `end` parameter, which is not properly validated. This function creates a new range object based on two nodes, but it does not check whether the `end` node is within the same document as the `start` node. An attacker can exploit this by providing an `end` node that is outside of the document, leading to a buffer overflow when the function attempts to create the range object.
-
-The risky pattern in this function is the use of `xmlXPtrNewRangeNodeObject()` without proper validation of the input parameters. This function should be used with caution and only when the input data is known to be valid.
-
-Potential impact: An attacker could exploit this vulnerability by providing malicious input data that leads to a buffer overflow, potentially allowing them to execute arbitrary code or gain unauthorized access to sensitive data.","To fix this vulnerability, the function should validate the `end` parameter before using it in `xmlXPtrNewRangeNodeObject()`. This can be done by checking whether the `end` node is within the same document as the `start` node. If not, the function should return an error or handle the situation appropriately.
-
-Here is a corrected version of the function that includes this validation:
-```c
-xmlXPathObjectPtr xmlXPtrNewRangeNodeObject(xmlNodePtr start, xmlXPathObjectPtr end) {
-    if (start == NULL || end == NULL) return NULL;
-    if (!xmlXPtrIsSameDocument(start, end)) return NULL; // Validate `end` node is within the same document as `start`
-    switch (end->type) {
-        case XPATH_POINT:
-        case XPATH_RANGE:
-            break;
-        case XPATH_NODESET:
-            if (end->nodesetval->nodeNr <= 0) return NULL;
-            break;
-        default:
-            return NULL;
-    }
-    xmlXPathObjectPtr ret = (xmlXPathObjectPtr) xmlMalloc(sizeof(xmlXPathObject));
-    if (ret == NULL) {
-        xmlXPtrErrMemory(""allocating range"");
-        return NULL;
-    }
-    memset(ret, 0 , (size_t) sizeof(xmlXPathObject));
-    ret->type = XPATH_RANGE;
-    ret->user = start;
-    ret->index = -1;
-    switch (end->type) {
-        case XPATH_POINT:
-            ret->user2 = end->user;
-            ret->index2 = end->index;
-            break;
-        case XPATH_RANGE:
-            ret->user2 = end->user2;
-            ret->index2 = end->index2;
-            break;
-        case XPATH_NODESET: {
-            ret->user2 = end->nodesetval->nodeTab[end->nodesetval->nodeNr - 1];
-            ret->index2 = -1;
-            break;
-        }
-        default:
-            STRANGE
-            return NULL;
-    }
-    xmlXPtrRangeCheckOrder(ret);
-    return ret;
-}
-```",
-24,0,non-vulnerable,"CWE-476, CWE-119","static int tg3_alloc_rx_data(struct tg3 *tp, struct tg3_rx_prodring_set *tpr, 			     u32 opaque_key",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the vulnerability in this function is a lack of input validation. The `opaque_key` parameter, which determines the behavior of the function, is not properly validated before being used. An attacker could exploit this by passing an invalid value for `opaque_key`, causing the function to access memory outside its intended bounds or perform unintended operations.
-
-The risky pattern in this function is the use of the `opaque_key` parameter without proper validation. This allows an attacker to manipulate the behavior of the function and potentially gain unauthorized access to sensitive data or execute malicious code.
-
-Potential impact: An attacker could exploit this vulnerability to gain unauthorized access to sensitive data, execute malicious code, or disrupt system operations. Depending on the specifics of the implementation, the potential impact could be severe.","To fix this vulnerability, we must validate the `opaque_key` parameter before using it. This can be done by adding a check to ensure that the value is within an acceptable range or by using a whitelist of allowed values. Additionally, we should consider implementing other security measures such as input sanitization and error handling to prevent potential attacks.
-
-Here is a corrected version of the function with the necessary changes:
-```c
-static int tg3_alloc_rx_data(struct tg3 *tp, struct tg3_rx_prodring_set *tpr,
-                              u32 opaque_key, u32 dest_idx_unmasked,
-                              unsigned int *frag_size)
-{
-    // Validate the opaque key before using it
-    if (opaque_key < RXD_OPAQUE_RING_STD || opaque_key > RXD_OPAQUE_RING_JUMBO) {
-        return -EINVAL;
-    }
-
-    struct tg3_rx_buffer_desc *desc;
-    struct ring_info *map;
-    u8 *data;
-    dma_addr_t mapping;
-    int skb_size, data_size, dest_idx;
-
-    switch (opaque_key) {
-        case RXD_OPAQUE_RING_STD:
-            dest_idx = dest_idx_unmasked & tp->rx_std_ring_mask;
-            desc = &tpr->rx_std[dest_idx];
-            map = &tpr->rx_std_buffers[dest_idx];
-            data_size = tp->rx_pkt_map_sz;
-            break;
-
-        case RXD_OPAQUE_RING_JUMBO:
-            dest_idx = dest_idx_unmasked & tp->rx_jmb_ring_mask;
-            desc = &tpr->rx_jmb[dest_idx].std;
-            map = &tpr->rx_jmb_buffers[dest_idx];
-            data_size = TG3_RX_JMB_MAP_SZ;
-            break;
-
-        default:
-            return -EINVAL;
-    }
-
-    // Do not overwrite any of the map or rp information
-    // until we are sure we can commit to a new buffer.
-    skb_size = SKB_DATA_ALIGN(data_size + TG3_RX_OFFSET(tp)) +
-               SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-    if (skb_size <= PAGE_SIZE) {
-        data = netdev_alloc_frag(skb_size);
-        *frag_size = skb_size;
-    } else {
-        data = kmalloc(skb_size, GFP_ATOMIC);
-        *frag_size = 0;
-    }
-    if (!data) {
-        return -ENOMEM;
-    }
-
-    mapping = pci_map_single(tp->pdev,
-                             data + TG3_RX_OFFSET(tp),
-                             data_size,
-                             P",
-25,0,non-vulnerable,CWE-704,"make_uint_array(register os_ptr op, const uint * intp, int count) {     int i;      for (i = 0; i < ",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the potential vulnerability in this function is the use of an uninitialized pointer `op`. The function assumes that `op` points to a valid memory location, but it is not guaranteed to be initialized before being passed into the function. This could lead to a buffer overflow or other security issues if an attacker were able to control the value of `op`.
-
-The risky pattern in this function is the use of the `make_int` function without proper bounds checking. The `make_int` function takes two arguments, `op` and `intp`, but it does not check whether `op` points to a valid memory location or whether `intp` points to a valid integer value. This could lead to a buffer overflow or other security issues if an attacker were able to control the values of these variables.
-
-The potential impact of this vulnerability is that an attacker could exploit it to gain unauthorized access to sensitive data, execute malicious code, or disrupt system operations.","To fix this vulnerability, we need to ensure that the `op` pointer is properly initialized before being passed into the function, and we need to add bounds checking to prevent buffer overflows in the `make_int` function. Here is a corrected version of the function:
-```c
-void make_uint_array(register os_ptr op, const uint * intp, int count) {
-    if (op == NULL || intp == NULL) {
-        return;
-    }
-
-    for (int i = 0; i < count && i < MAX_ARRAY_SIZE; i++, op++, intp++) {
-        make_int(op, *intp);
-    }
-}
-```
-In this corrected version of the function, we first check that `op` and `intp` are not null pointers. We then iterate over the array elements using a for loop with bounds checking to prevent buffer overflows in the `make_int` function. Finally, we call the `make_int` function with the proper arguments.
-
-By properly initializing the `op` pointer and adding bounds checking to the `make_int` function, we have fixed the potential vulnerability in this function and improved its security.",
-26,1,vulnerable,"CWE-20, CWE-703",  void Compute(OpKernelContext* context) override {     const Tensor& input = context->input(0);    ,non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"I disagree with the classifier's prediction that this function is vulnerable to a buffer overflow attack. The function uses the `AsDeviceMemory` method to convert the input and output tensors into device memory, which ensures that they are properly aligned for use with CUDA operations. Additionally, the function uses the `cudnn_launch_status` variable to check if the CUDNN operation was successful, which would prevent any buffer overflow attacks from occurring.
-
-Therefore, I believe that this function is not vulnerable to a buffer overflow attack and no remediation is needed.",Could not parse remediation — see full response.,
-27,0,non-vulnerable,,"void async_domain_request(TALLOC_CTX *mem_ctx, 			  struct winbindd_domain *domain, 			  struct winb",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the vulnerability is the use of `TALLOC_P`, which allocates memory on the heap. The function then uses this memory to store a `struct domain_request_state`, which contains pointers to various data structures. However, these pointers are not checked for validity before being used, leading to a buffer overflow vulnerability if an attacker can control the size of the allocated memory block.
-
-The risky pattern is the use of `TALLOC_P` and `init_child_connection`, which both allocate memory on the heap and then use it to store data structures. These functions are not properly validated, leading to a potential buffer overflow vulnerability.
-
-The potential impact of this vulnerability is that an attacker could exploit it to execute arbitrary code in the context of the program, potentially allowing them to escalate their privileges or gain control over the system.","To fix this vulnerability, we can use a safer alternative to `TALLOC_P` such as `malloc`, which checks for validity before using the allocated memory. We can also use a safer alternative to `init_child_connection` such as `connect`, which does not allocate memory on the heap and is therefore less vulnerable to buffer overflow attacks.
-
-Here is an example of how we could modify the function to fix the vulnerability:
-```c
-void async_domain_request(TALLOC_CTX *mem_ctx, struct winbindd_domain *domain, struct winbindd_request *request, struct winbindd_response *response, void (*continuation)(void *private_data_data, BOOL success), void *private_data_data)
-{
-    struct domain_request_state *state;
-
-    if (domain->initialized) {
-        async_request(mem_ctx, &domain->child, request, response, continuation, private_data_data);
-        return;
-    }
-
-    state = malloc(sizeof(struct domain_request_state));
-    if (state == NULL) {
-        DEBUG(0, (""malloc failed\n""));
-        continuation(private_data_data, False);
-        return;
-    }
-
-    state->mem_ctx = mem_ctx;
-    state->domain = domain;
-    state->request = request;
-    state->response = response;
-    state->continuation = continuation;
-    state->private_data_data = private_data_data;
-
-    connect(domain, domain_init_recv, state);
-}
-```",
-28,0,non-vulnerable,CWE-125,      static unsigned short min() { return 0; },non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the vulnerability in this function is the use of a static function with no parameters and a return type of unsigned short. This suggests that the function may be used to calculate a minimum value, which could potentially lead to an integer overflow or underflow. The risky pattern in this function is the use of a static function with no parameters, as this can make it difficult to predict the behavior of the function and introduce vulnerabilities.
-
-The potential impact of this vulnerability depends on how the function is used in the program. If the function is used to calculate a minimum value for an array or other data structure, an attacker could potentially exploit this vulnerability by providing malicious input that causes the function to return an incorrect minimum value. This could lead to unexpected behavior or security issues in the program.","To fix this vulnerability, it is recommended to use a different approach for calculating the minimum value of an array or other data structure. One possible solution is to use a dynamic function with parameters that accept the input values and return the minimum value. This approach would make it easier to predict the behavior of the function and reduce the risk of vulnerabilities.
-
-Alternatively, if the function is used in a specific context where the integer overflow or underflow is not a concern, then it may be acceptable to use a static function with no parameters and a return type of unsigned short. However, this approach should only be considered after careful review and testing to ensure that there are no potential security issues.",
-29,0,non-vulnerable,CWE-20,"static void remove_migration_ptes(struct page *old, struct page *new) { 	if (PageAnon(new)) 		remove",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the vulnerability in this function is the use of the `PageAnon()` macro, which checks whether a page is anonymous or not. The risky pattern is the use of this macro to determine whether to call the `remove_anon_migration_ptes()` or `remove_file_migration_ptes()` functions, depending on whether the page is anonymous or not.
-
-The potential impact of this vulnerability is that an attacker could exploit it by passing a malicious pointer value to the `old` parameter of either function, which could result in arbitrary code execution with system privileges.","To fix this vulnerability, we need to ensure that the `remove_migration_ptes()` function is not called with a malicious pointer value for the `old` parameter. One way to do this is by adding an additional check before calling either of the two helper functions:
-```c
-static void remove_migration_ptes(struct page *old, struct page *new)
-{
-    if (PageAnon(new)) {
-        // Check if old is a valid pointer
-        if (!is_valid_pointer(old)) {
-            return;
-        }
-        remove_anon_migration_ptes(old, new);
-    } else {
-        // Check if old is a valid pointer
-        if (!is_valid_pointer(old)) {
-            return;
-        }
-        remove_file_migration_ptes(old, new);
-    }
-}
-```
-In this version of the function, we first check whether `old` is a valid pointer before calling either of the two helper functions. If it is not a valid pointer, we simply return without doing anything else. This will prevent an attacker from passing a malicious pointer value to the `remove_migration_ptes()` function and exploiting the vulnerability.",
-30,1,vulnerable,CWE-476," */ static void php_wddx_serialize_object(wddx_packet *packet, zval *obj) { /* OBJECTS_FIXME */ 	zva",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of this vulnerability is the use of `call_user_function_ex` to call a user-defined function, specifically `__sleep`. This function is supposed to return an array of property names to be serialized, but it can instead return arbitrary data that will be executed as PHP code. An attacker can exploit this by providing malicious input that includes PHP code, which will then be executed when the `call_user_function_ex` call is made.
-
-The risky pattern in this function is the use of `call_user_function_ex`, which allows an attacker to execute arbitrary code if they can manipulate the input data. Additionally, the function uses `zend_hash_find` to retrieve values from a hash table, which can also lead to arbitrary code execution if the attacker can control the keys used in the hash table.
-
-The potential impact of this vulnerability is significant, as an attacker could use it to execute arbitrary code on the server, potentially leading to data breaches or other security incidents.","To fix this vulnerability, we need to ensure that any user-defined functions called by `call_user_function_ex` are properly validated and sanitized before being executed. Additionally, we should use safer alternatives to `zend_hash_find`, such as `zend_hash_get_current_data`, which can help prevent arbitrary code execution.
-
-Here is a corrected version of the function that incorporates these changes:
-```c
-static void php_wddx_serialize_object(wddx_packet *packet, zval *obj)
-{
-    /* OBJECTS_FIXME */
-    zval **ent, *fname, **varname;
-    zval *retval = NULL;
-    const char *key;
-    ulong idx;
-    char tmp_buf[WDDX_BUF_LEN];
-    HashTable *objhash, *sleephash;
-    TSRMLS_FETCH();
-
-    MAKE_STD_ZVAL(fname);
-    ZVAL_STRING(fname, ""__sleep"", 1);
-
-    /*
-     * We try to call __sleep() method on object. It's supposed to return an
-     * array of property names to be serialized.
-     */
-    if (call_user_function_ex(CG(function_table), &obj, fname, &retval, 0, 0, 1, NULL TSRMLS_CC) == SUCCESS) {
-        if (retval && (sleephash = HASH_OF(retval))) {
-            PHP_CLASS_ATTRIBUTES;
-
-            PHP_SET_CLASS_ATTRIBUTES(obj);
-
-            php_wddx_add_chunk_static(packet, WDDX_STRUCT_S);
-            snprintf(tmp_buf, WDDX_BUF_LEN, WDDX_VAR_S, PHP_CLASS_NAME_VAR);
-            php_wddx_add_chunk(packet, tmp_buf);
-            php_wddx_add_chunk_static(packet, WDDX_STRING_S);
-            php_wddx_add_chunk_ex(packet, class_name, name_len);
-            php_wddx_add_chunk_static(packet, WDDX_STRING_E);
-            php_wddx_add_chunk_static(packet, WDDX_VAR_E);
-
-            PHP_CLEANUP_CLASS_ATTRIBUTES();
-
-            objhash = HASH_OF(obj);
-
-            for (zend_hash_internal_pointer_reset(sleephash);
-                 zend_hash_get_current_data(sleephash, (void **)&varname) == SUCCESS;
-                 zend_hash_move_forward(sleephash)) {
-                if (Z_TYPE_PP(varname) !=",
-31,0,non-vulnerable,CWE-310,ews_client_autodiscover_parse_protocol (xmlNode *node) {   gboolean as_url;   gboolean oab_url;    a,non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of this vulnerability is the use of unchecked user input in the `ews_client_check_node` function. This function takes an XML node as input and checks whether it contains certain elements, such as ""ASUrl"" or ""OABUrl"". However, it does not properly validate the length of these elements, which could lead to a buffer overflow if the user-supplied input is too long.
-
-The risky pattern in this function is the use of unchecked user input in the `ews_client_check_node` function. This function should be modified to properly validate the length of the user-supplied input and prevent buffer overflows.
-
-Potential impact: An attacker could exploit this vulnerability by supplying a maliciously crafted XML document that contains long elements, leading to a buffer overflow and potentially executing arbitrary code with the privileges of the affected process.","To fix this vulnerability, the `ews_client_check_node` function should be modified to properly validate the length of the user-supplied input and prevent buffer overflows. This can be achieved by using a safer XML parsing library, such as libxml2 or expat, which provide built-in support for validating element lengths and preventing buffer overflows. Alternatively, the function could be modified to use a fixed-size buffer for storing the user-supplied input, and ensure that the length of the input is properly checked before using it in any subsequent operations.",
-32,1,vulnerable,CWE-125,"static MagickBooleanType WritePICTImage(const ImageInfo *image_info,   Image *image,ExceptionInfo *e",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"I disagree with the classifier's prediction that this function is vulnerable to a buffer overflow attack. The function uses the `EncodeImage()` function from ImageMagick, which is designed to handle image data and prevent buffer overflows. Additionally, the function does not use any user-supplied input or data, so there is no potential for an attacker to exploit this vulnerability.
-
-The root cause of the vulnerability in this function is the use of a fixed-size buffer to store the encoded image data. This can lead to a buffer overflow if the encoded image data exceeds the size of the buffer. However, the `EncodeImage()` function from ImageMagick is designed to handle this situation by dynamically allocating memory for the encoded image data and ensuring that it fits within the allocated space.
-
-Therefore, there is no potential impact on an attacker's ability to exploit this vulnerability, and no remediation is needed.",Could not parse remediation — see full response.,
-33,0,non-vulnerable,CWE-189,ProcShmGetImage(client)     register ClientPtr client; {     DrawablePtr		pDraw;     long		lenPer = ,non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"This function contains a potential vulnerability due to a race condition in the `VERIFY_SHMPTR` macro. The macro checks if the shared memory segment is valid and has enough space for the requested data, but it does not ensure that the segment remains valid until the end of the function's execution. An attacker could exploit this vulnerability by manipulating the shared memory segment while the function is executing, potentially causing a buffer overflow or other security issues.
-
-The root cause of the vulnerability is the use of a macro to perform the validation check, which does not provide sufficient control over the code flow. The risky pattern is the use of the `VERIFY_SHMPTR` macro without proper synchronization mechanisms, such as locks or semaphores, to ensure that the segment remains valid until the end of the function's execution.
-
-The potential impact of this vulnerability depends on the specific implementation and usage of the function. However, it is possible for an attacker to exploit this vulnerability to gain unauthorized access to sensitive data or to execute malicious code with elevated privileges.","To fix this vulnerability, we can use a synchronization mechanism such as a lock or semaphore to ensure that the shared memory segment remains valid until the end of the function's execution. We can also use a safer alternative to the `VERIFY_SHMPTR` macro, such as a custom validation function that performs the necessary checks and provides better control over the code flow.
-
-Here is an example of how we could modify the function to fix this vulnerability:
-```c
-#include <pthread.h>
-
-// ...
-
-static pthread_mutex_t shm_lock = PTHREAD_MUTEX_INITIALIZER;
-
-int ProcShmGetImage(ClientPtr client) {
-    // ...
-
-    if (stuff->format == ZPixmap) {
-        length = PixmapBytePad(stuff->width, pDraw->depth) * stuff->height;
-    } else {
-        lenPer = PixmapBytePad(stuff->width, 1) * stuff->height;
-        plane = ((Mask)1) << (pDraw->depth - 1);
-        // only planes asked for
-        length = lenPer * Ones(stuff->planeMask & (plane | (plane - 1)));
-    }
-
-    pthread_mutex_lock(&shm_lock);
-    VERIFY_SHMSIZE(shmdesc, stuff->offset, length, client);
-    pthread_mutex_unlock(&shm_lock);
-
-    // ...
-}
-```
-In this example, we use a mutex to synchronize access to the shared memory segment. We lock the mutex before calling `VERIFY_SHMSIZE`, which ensures that the segment remains valid until the end of the function's execution. This fix prevents the race condition and mitigates the vulnerability.",
-34,1,vulnerable,"CWE-269, CWE-94","void join(pid_t pid, int argc, char **argv, int index) { 	EUID_ASSERT();  	pid_t parent = pid; 	// i",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of the vulnerability in this function is the use of `EUID_ASSERT()` and `EUID_ROOT()` macros, which are used to ensure that the process has the correct effective user ID (EUID) before performing certain actions. However, these macros do not properly check for the EUID, leading to a race condition where an attacker could exploit this vulnerability by changing the EUID of the process after it has been checked but before the action is performed.
-
-The risky pattern in this function is the use of `EUID_ASSERT()` and `EUID_ROOT()` macros, which are not properly secured against race conditions. This allows an attacker to exploit the vulnerability by changing the EUID of the process after it has been checked but before the action is performed.
-
-The potential impact of this vulnerability is that an attacker could gain elevated privileges and access to sensitive information or resources, depending on the context in which the function is used.","To fix this vulnerability, we can use a different approach for checking the EUID, such as using `geteuid()` instead of relying on the `EUID_ASSERT()` and `EUID_ROOT()` macros. We can also add additional checks to ensure that the EUID is correct before performing any actions that require elevated privileges.
-
-Here is an example of how we could modify the function to fix this vulnerability:
-```c
-void join(pid_t pid, int argc, char **argv, int index) {
-    // Check for the correct EUID using geteuid()
-    if (geteuid() != 0) {
-        return;
-    }
-
-    // Perform actions that require elevated privileges
-}
-```
-By using `geteuid()` to check the EUID, we can ensure that the process has the correct EUID before performing any actions that require elevated privileges. This will prevent an attacker from exploiting this vulnerability by changing the EUID of the process after it has been checked but before the action is performed.",
-35,1,vulnerable,CWE-346,int udev_monitor_enable_receiving(struct udev_monitor *udev_monitor) { 	int err; 	const int on = 1; ,non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of the vulnerability in this function is the use of `setsockopt()` with the `SO_PASSCRED` option. This allows an attacker to pass credentials from one socket to another, potentially allowing them to escalate their privileges or gain unauthorized access to sensitive information.
-The risky pattern responsible for this vulnerability is the call to `setsockopt()`, which sets a socket option that allows the passing of credentials.
-The potential impact of this vulnerability is significant, as it could allow an attacker to gain elevated privileges or access sensitive information.","To fix this vulnerability, we must remove the call to `setsockopt()` and replace it with a safer alternative that does not allow the passing of credentials. One possible solution is to use a different socket option, such as `SO_PASSSEC`, which allows the passing of security information but does not include credentials. Alternatively, we could use a different function altogether, such as `bind()` or `connect()`, which do not have this vulnerability.
-It's important to note that this fix will only work if the function is called with appropriate permissions and in a secure environment.",
-36,1,vulnerable,CWE-399,"static int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb) {     BUF_MEM *b;     unsigned char *p;     int ",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of the vulnerability in this function is a lack of input validation. The `ASN1_get_object` function, which is used to parse the ASN.1 header, does not properly validate the input data. This allows an attacker to supply maliciously crafted data that can lead to a buffer overflow or other security issues.
-The risky pattern in this function is the use of `ASN1_get_object` without proper validation of the input data. The function assumes that the input data is properly formatted and does not perform any checks to ensure its validity. This allows an attacker to supply malicious data that can lead to a buffer overflow or other security issues.
-The potential impact of this vulnerability is significant, as it could allow an attacker to execute arbitrary code with the privileges of the affected process.","To remediate this vulnerability, we need to properly validate the input data passed to `ASN1_get_object`. This can be achieved by adding additional checks to ensure that the input data is properly formatted and does not contain any malicious content. Additionally, we should also consider using a safer alternative to `ASN1_get_object`, such as a library that provides more robust input validation.
-Here is an example of how this function could be modified to include proper input validation:
-```c
-static int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb) {
-    // ...
-    const unsigned char *q;
-    long slen;
-    int inf, tag, xclass;
-
-    // Validate input data using a safer alternative to ASN1_get_object
-    if (!ASN1_validate_input(in, &slen)) {
-        return -1;
-    }
-
-    // ...
-}
-```",
-37,0,non-vulnerable,"CWE-59, CWE-61","static bool in_comma_list(const char *inword, const char *cgroup_use) { 	char *e; 	size_t inlen = st",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the vulnerability in this function is the use of `strncmp()` without proper bounds checking. The `strncmp()` function compares two strings up to a specified number of characters, but it does not ensure that the comparison is performed within the bounds of the input strings. This means that an attacker could provide a specially crafted input string that causes the function to access memory outside its intended scope, leading to a buffer overflow or other security vulnerability.
-
-The risky pattern in this function is the use of `strncmp()` without proper bounds checking. The function assumes that the input strings are properly terminated and does not check for null bytes or other unexpected characters. This could lead to a buffer overflow or other security vulnerabilities if an attacker can control the input string.
-
-The potential impact of this vulnerability is significant, as it could allow an attacker to execute arbitrary code with the privileges of the program.","To fix this vulnerability, we need to ensure that the `strncmp()` function is used properly by checking for null bytes and other unexpected characters in the input strings. We can do this by using a safer alternative such as `memcmp()`, which performs bounds-checked comparisons of memory regions. Alternatively, we could use a library function that provides safe string comparison functionality, such as `strcmp_s()` or `strncmp_s()`.
-
-Here is an example of how to fix the vulnerability using `memcmp()`:
-```c
-static bool in_comma_list(const char *inword, const char *cgroup_use)
-{
-    size_t inlen = strlen(inword), len;
-    do {
-        e = strchr(cgroup_use, ',');
-        len = e ? e - cgroup_use : strlen(cgroup_use);
-        if (memcmp(inword, cgroup_use, len) == 0)
-            return true;
-        cgroup_use = e + 1;
-    } while (e);
-    return false;
-}
-```
-This version of the function uses `memcmp()` to perform a bounds-checked comparison of the input strings. This ensures that the comparison is performed within the bounds of the input strings, and avoids the potential for buffer overflow or other security vulnerabilities.",
-38,0,non-vulnerable,,static inline void rmv_page_order(struct page *page) { 	__ClearPageBuddy(page); 	set_page_private(pa,non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the vulnerability is the use of the `__ClearPageBuddy` macro, which clears the `PG_buddy` flag on the page. This flag indicates whether the page is part of a buddy system, and clearing it could potentially allow an attacker to exploit the function by creating a fake buddy page.
-
-The risky pattern is the use of this macro, which clears the `PG_buddy` flag on the page. This flag indicates whether the page is part of a buddy system, and clearing it could potentially allow an attacker to exploit the function by creating a fake buddy page.
-
-The potential impact of this vulnerability is that an attacker could use this function to create a fake buddy page, which could lead to a variety of security issues, such as:
-
-* Privilege escalation: An attacker could use this function to create a fake buddy page and then exploit the function to gain elevated privileges.
-* Memory corruption: An attacker could use this function to create a fake buddy page and then exploit the function to corrupt memory, leading to a variety of security issues.
-* Denial of Service (DoS): An attacker could use this function to create a fake buddy page and then exploit the function to cause a denial of service by consuming system resources.","To fix this vulnerability, we can modify the function as follows:
-```c
-static inline void rmv_page_order(struct page *page)
-{
-    __ClearPageBuddy(page);
-    set_page_private(page, 0);
-    // Add a check to ensure that the page is not part of a buddy system before clearing its PG_buddy flag
-    if (!__PageBuddy(page)) {
-        __ClearPageBuddy(page);
-    }
-}
-```
-This modified function will first check whether the page is part of a buddy system using the `__PageBuddy` macro. If it is not, then we can clear its `PG_buddy` flag without any issues. This modification will prevent an attacker from exploiting this vulnerability by creating a fake buddy page.",
-39,1,vulnerable,CWE-787,"static int ext4_xattr_set_entry(struct ext4_xattr_info *i, 				struct ext4_xattr_search *s, 				hand",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"PART 1 - CONFIRMATION
-I DISAGREE with the classifier's prediction that this function is NON-VULNERABLE.
-The classifier's confidence score of 58.1% does not provide sufficient evidence to support its conclusion.
-
-PART 2 - EXPLANATION
-The root cause of the vulnerability in this function is a failure to properly validate user input. The function uses the `strlen()` function to determine the length of an attribute name, but it does not check whether the resulting value is within the expected range (i.e., less than or equal to 255). An attacker could exploit this vulnerability by providing a long attribute name that exceeds the maximum allowed length, causing the `strlen()` function to return an incorrect value and potentially leading to a buffer overflow.
-
-The risky pattern in this function is the use of the `strlen()` function without proper validation. The function should check the return value of `strlen()` against the expected range before using it as an index into the attribute name array.
-
-Potential impact: An attacker could exploit this vulnerability to cause a buffer overflow, potentially leading to code execution or data corruption.
-
-PART 3 - REMEDIATION
-To fix this vulnerability, the function should validate the return value of `strlen()` against the expected range before using it as an index into the attribute name array. The corrected version of the function in C/C++ is provided below:
-```c
-static int ext4_xattr_set_entry(struct ext4_xattr_info *i, struct ext4_xattr_search *s, handle_t *handle, struct inode *inode, bool is_block) {
-    size_t min_offs = s->end - s->base;
-    int in_inode = i->in_inode;
-    struct inode *old_ea_inode = NULL;
-    struct inode *new_ea_inode = NULL;
-    size_t old_size, new_size;
-    int ret;
-
-    /* Space used by old and new values. */
-    old_size = (!s->not_found && !here->e_value_inum) ? EXT4_XATTR_SIZE(le32_to_cpu(here->e_value_size)) : 0;
-    new_size = (i->value && !in_inode) ? EXT4_XATTR_SIZE(i->value_len) : 0;
-
-    /* Check whether we have enough space. */
-    if (i->value) {
-        size_t free;
-
-        free = min_offs - ((void *)last - s->base) - sizeof(__u32);
-        if (!s->not_found)
-            free += EXT4_XATTR_LEN(name_len) + old_size;
-
-        if (free < EXT4_XATTR_LEN(name_len) + new_size) {
-            ret = -ENOSPC;
-            goto out;
-        }
-    }
-
-    /* Validate the attribute name length. */
-    if (strlen(i->name) > 255) {
-        ret = -EINVAL;
-        goto out;
-    }
-
-    /* ... rest of the function ... */
-}
-```",Could not parse remediation — see full response.,
-40,0,non-vulnerable,"CWE-119, CWE-787","BGD_DECLARE(void) gdImageSetStyle (gdImagePtr im, int *style, int noOfPixels) { 	if (im->style) { 		",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the vulnerability is the use of `memcpy` without proper bounds checking, which can lead to buffer overflows if the input data exceeds the size of the destination buffer. The risky pattern is the call to `memcpy`, and the potential impact is that an attacker could exploit this vulnerability to execute arbitrary code or cause a denial-of-service attack.","To fix the vulnerability, we can use a safer alternative such as `strncpy` or `memmove`, which perform bounds checking and prevent buffer overflows. Alternatively, we can use a tool like AddressSanitizer to detect and prevent these types of errors at runtime.",
-41,1,vulnerable,"CWE-284, CWE-264","static int linear_ioctl(struct dm_target *ti, unsigned int cmd, 			unsigned long arg) { 	struct line",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of the vulnerability is the use of the `__blkdev_driver_ioctl` function, which is a system call that allows for device-specific I/O control operations. This function can be exploited by an attacker to overwrite the return address on the stack and execute arbitrary code.
-
-The risky pattern in this case is the use of the `__blkdev_driver_ioctl` function, which can be used to perform a variety of I/O control operations on the device. This function does not perform any bounds checking or input validation, which makes it vulnerable to buffer overflow attacks.
-
-The potential impact of this vulnerability is significant, as an attacker could use this flaw to execute arbitrary code with the privileges of the program. This could potentially allow for privilege escalation, data exfiltration, or other malicious activities.","To fix this vulnerability, we need to ensure that the input passed to the `__blkdev_driver_ioctl` function is properly validated and bounds-checked before being used. This can be done by using a safer alternative such as `ioctl`, which performs bounds checking on the input buffer.
-
-Alternatively, we could use a memory safe library such as `libseccomp` to sandbox the program and prevent it from executing any malicious code.
-
-In either case, we need to ensure that the input passed to the `__blkdev_driver_ioctl` function is properly validated and bounds-checked before being used to prevent buffer overflow attacks and other security vulnerabilities.",
-42,1,vulnerable,CWE-77,amstar_selfcheck(     application_argument_t *argument) {     if (argument->dle.disk) { 	char *qdisk,non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of vulnerability in this function is the use of `set_root_privs(1)` and `set_root_privs(0)`. These functions are used to temporarily elevate privileges, but they do not properly check for errors or handle exceptions. This can lead to a situation where an attacker could exploit the vulnerability by manipulating the input data in a way that causes the function to execute with elevated privileges.
-
-The risky pattern is the use of `set_root_privs(1)` and `set_root_privs(0)` without proper error handling or exception handling. This can lead to unintended consequences, such as an attacker being able to exploit the vulnerability.
-
-Potential impact: An attacker could use this vulnerability to gain elevated privileges on the system and potentially execute malicious code with root access.","To fix this vulnerability, we need to properly handle errors or exceptions that may occur during the execution of `set_root_privs(1)` and `set_root_privs(0)`. We can do this by adding error handling code around these functions. For example:
-```c
-int set_root_privs(int on) {
-    int ret = 0;
-    if (on) {
-        // Elevate privileges
-        ret = elevate_privileges();
-        if (ret != 0) {
-            // Handle error
-            return -1;
-        }
-    } else {
-        // Restore original privileges
-        ret = restore_privileges();
-        if (ret != 0) {
-            // Handle error
-            return -1;
-        }
-    }
-    return 0;
-}
-```
-In this example, we have added error handling code around the `elevate_privileges()` and `restore_privileges()` functions. If an error occurs during these functions, we return `-1` to indicate that an error has occurred. This will allow us to handle errors properly and prevent unintended consequences.",
-43,1,vulnerable,CWE-369,"TfLiteStatus ResizeOutputTensors(TfLiteContext* context, TfLiteNode* node,                          ",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of this vulnerability is the use of the `GetTensorData` function without proper bounds checking. This function returns a pointer to the data stored in the input tensor, but it does not perform any bounds checking on the size of the output array. An attacker could potentially control the size of the output array by manipulating the input tensor, leading to a buffer overflow.
-
-The risky pattern responsible for this vulnerability is the use of `GetTensorData` without proper bounds checking. This function should be used with caution and only when the caller can ensure that the output array has sufficient space to store the data.
-
-Potential impact: An attacker could potentially exploit this vulnerability to execute arbitrary code or cause a denial of service by controlling the size of the output tensor.","To fix this vulnerability, we need to ensure that the `GetTensorData` function is used with proper bounds checking. One way to do this is to use the `TF_LITE_ENSURE` macro to check if the output tensor has sufficient space to store the data before calling `GetTensorData`.
-
-Here's an example of how the fixed function could look like:
-```c
-TfLiteStatus ResizeOutputTensors(TfLiteContext* context, TfLiteNode* node,
-                                 const TfLiteTensor* axis,
-                                 const TfLiteTensor* input, int num_splits) {
-  int axis_value = GetTensorData<int>(axis)[0];
-  if (axis_value < 0) {
-    axis_value += NumDimensions(input);
-  }
-
-  TF_LITE_ENSURE(context, axis_value >= 0);
-  TF_LITE_ENSURE(context, axis_value < NumDimensions(input));
-
-  const int input_size = SizeOfDimension(input, axis_value);
-  TF_LITE_ENSURE_MSG(context, input_size % num_splits == 0,
-                     ""Not an even split"");
-  const int slice_size = input_size / num_splits;
-
-  for (int i = 0; i < NumOutputs(node); ++i) {
-    TfLiteIntArray* output_dims = TfLiteIntArrayCopy(input->dims);
-    output_dims->data[axis_value] = slice_size;
-    TfLiteTensor* output;
-    TF_LITE_ENSURE_OK(context, GetOutputSafe(context, node, i, &output));
-    // Check if the output tensor has sufficient space to store the data
-    TF_LITE_ENSURE(context, output->bytes >= slice_size);
-    TF_LITE_ENSURE_STATUS(context->ResizeTensor(context, output, output_dims));
-  }
-
-  return kTfLiteOk;
-}
-```",
-44,0,non-vulnerable,CWE-20,"static HRESULT STDMETHODCALLTYPE CliprdrStream_UnlockRegion(IStream* This, ULARGE_INTEGER libOffset,",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the potential vulnerability is the use of the `E_NOTIMPL` return value. This value indicates that the function is not implemented, which could be a sign of a vulnerable function. The risky pattern in this case is the lack of implementation, as it may indicate that the function has not been properly tested or reviewed.
-
-The potential impact of an attacker exploiting this vulnerability would depend on the specific context in which this function is used. However, it is possible that an attacker could use this vulnerability to gain unauthorized access to sensitive data or system resources.","To fix this vulnerability, the `E_NOTIMPL` return value should be replaced with a more appropriate error code, such as `E_FAIL`. Additionally, the function should be properly implemented and tested to ensure that it is secure.",
-45,1,vulnerable,CWE-284,"static int http_RecvPostMessage( 	/*! HTTP Parser object. */ 	http_parser_t *parser, 	/*! [in] Socke",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of the vulnerability in this function is the use of a hardcoded file path for writing data to disk. This allows an attacker to write arbitrary files to any location on the system, potentially leading to unauthorized access or modification of sensitive information. The risky pattern responsible for this vulnerability is the use of `fopen(filename, ""wb"")` without proper sanitization of user input.
-The potential impact of this vulnerability is significant, as it could allow an attacker to write malicious files to any location on the system, potentially leading to unauthorized access or modification of sensitive information.","To fix this vulnerability, we must ensure that user input is properly sanitized and validated before being used as a file path. One possible solution is to use a whitelist of allowed file paths and reject any input that does not match these paths. Alternatively, we could use a library such as libmagic to determine the type of data being written and ensure that it matches the expected format.",
-46,1,vulnerable,,"PHP_FUNCTION(xsl_xsltprocessor_get_parameter) { 	zval *id; 	int name_len = 0, namespace_len = 0; 	ch",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of this vulnerability is the use of `zend_hash_find()` without proper validation of the input parameters. This function can be used to search for a specific key in a hash table, but it does not perform any bounds checking on the input parameters. An attacker could potentially provide a large value for the `name` parameter, which could cause an integer overflow or buffer overflow when searching for the key in the hash table.
-
-The risky pattern is the use of `zend_hash_find()` without proper validation of the input parameters. This function should be used with caution and only after validating the input parameters to prevent potential vulnerabilities.
-
-Potential impact: An attacker could exploit this vulnerability by providing a large value for the `name` parameter, which could cause an integer overflow or buffer overflow when searching for the key in the hash table. This could potentially lead to remote code execution or other security issues.","To fix this vulnerability, we should validate the input parameters of `zend_hash_find()` and ensure that they are within the bounds of the hash table. We can use a function like `zend_hash_index_exists()` to check if the key exists in the hash table before searching for it. Additionally, we should also validate the output of `convert_to_string_ex()` to prevent potential buffer overflows.
-
-Here is an example of how to fix this vulnerability:
-```c
-zval *id;
-int name_len = 0, namespace_len = 0;
-char *name, *namespace;
-zval **value;
-xsl_object *intern;
-
-DOM_GET_THIS(id);
-
-if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, ""ss"", &namespace, &namespace_len, &name, &name_len) == FAILURE) {
-    RETURN_FALSE;
-}
-intern = (xsl_object *)zend_object_store_get_object(id TSRMLS_CC);
-if ( zend_hash_index_exists(intern->parameter, name, name_len + 1)) {
-    if ( zend_hash_find(intern->parameter, name, name_len + 1,  (void**) &value) == SUCCESS) {
-        convert_to_string_ex(value);
-        RETVAL_STRING(Z_STRVAL_PP(value),1);
-    } else {
-        RETURN_FALSE;
-    }
-} else {
-    RETURN_FALSE;
-}
-```
-In this example, we first check if the key exists in the hash table using `zend_hash_index_exists()`. If it does not exist, we return `false`. If it does exist, we search for the key in the hash table and convert the value to a string using `convert_to_string_ex()`. Finally, we return the string value.",
-47,0,non-vulnerable,CWE-476,"static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host) { 	struct kvm_vcpu_hv",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The function contains a potential vulnerability due to the use of a switch statement with multiple cases, each containing a call to a different function. This pattern is known as the ""switch statement vulnerability"" and can lead to unexpected behavior or code execution in certain scenarios.
-
-In this specific case, the `kvm_hv_set_msr` function contains a switch statement that maps MSR (Model-Specific Register) values to different functions for processing. Each of these functions is responsible for handling a specific MSR value and performing the necessary actions based on the input data.
-
-The root cause of the vulnerability is the use of a switch statement with multiple cases, which can lead to unexpected behavior or code execution if an attacker is able to manipulate the input data in a way that causes the function to execute an unintended case. This can happen due to various reasons such as buffer overflows, integer overflows, or other types of vulnerabilities.
-
-The risky pattern in this function is the switch statement with multiple cases, which can lead to unexpected behavior or code execution if an attacker is able to manipulate the input data in a way that causes the function to execute an unintended case. This can happen due to various reasons such as buffer overflows, integer overflows, or other types of vulnerabilities.
-
-The potential impact of this vulnerability is significant, as it could allow an attacker to execute arbitrary code on the system, leading to a range of security issues including data breaches, system compromise, and denial of service attacks.","To remediate this vulnerability, we can use a safer alternative to switch statements with multiple cases. One such alternative is the use of a lookup table or an array of function pointers, which can be used to map MSR values to specific functions for processing. This approach eliminates the risk of unexpected behavior or code execution due to input data manipulation.
-
-Here's an example of how we can modify the `kvm_hv_set_msr` function to use a lookup table instead of a switch statement:
-```c
-static int kvm_hv_set_msr(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
-{
-    static const struct {
-        void (*func)(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host);
-    } lookup[] = {
-        [HV_X64_MSR_VP_INDEX] = &kvm_hv_set_msr_vp_index,
-        [HV_X64_MSR_VP_ASSIST_PAGE] = &kvm_hv_set_msr_vp_assist_page,
-        [HV_X64_MSR_EOI] = &kvm_hv_set_msr_eoi,
-        [HV_X64_MSR_ICR] = &kvm_hv_set_msr_icr,
-        [HV_X64_MSR_TPR] = &kvm_hv_set_msr_tpr,
-        [HV_X64_MSR_VP_RUNTIME] = &kvm_hv_set_msr_vp_runtime,
-        [HV_X64_MSR_SCONTROL] = &kvm_hv_set_msr_scontrol,
-        [HV_X64_MSR_SVERSION] = &kvm_hv_set_msr_sversion,
-        [HV_X64_MSR_SIEFP] = &kvm_hv_set_msr_siefp,
-        [HV_X64_MSR_SIMP] = &kvm_hv_set_msr_simp,
-        [HV_X64_MSR_EOM] = &kvm_hv_set_msr_eom,
-        [HV_X64_MSR_SINT0 ... HV_X64_MSR_SINT15] = &kvm_hv_set_",
-48,1,vulnerable,"CWE-444, CWE-61","agoo_http_code_message(int code) {     const char	*msg = """";          switch (code) {     case 100:	",non-vulnerable,0,0.5808,0.4192,0.5808,False,disagrees,"The root cause of the vulnerability in this function is a lack of input validation. The `code` parameter is used directly in the `switch` statement without being properly sanitized, which allows an attacker to pass arbitrary values and potentially execute malicious code. This is a classic example of a buffer overflow vulnerability.
-The risky pattern is the use of the `switch` statement with untrusted input. The `case` statements are not properly guarded, allowing an attacker to bypass the intended functionality and execute arbitrary code.
-The potential impact of this vulnerability is significant. An attacker could exploit this vulnerability to execute malicious code on the system, potentially leading to unauthorized access or data breaches.","To remediate this vulnerability, we need to properly validate the `code` parameter and ensure that it is within a safe range of values. We can do this by using a whitelist approach, where only specific values are allowed. Additionally, we should also consider adding bounds checking to prevent buffer overflows.
-Here's an example of how the function could be modified:
-```c
-const char* agoo_http_code_message(int code) {
-    const char *msg = """";
-    
-    if (code < 100 || code > 599) {
-        return msg;
-    }
-    
-    switch (code) {
-    case 100:	msg = ""Continue"";				break;
-    case 101:	msg = ""Switching Protocols"";			break;
-    case 102:	msg = ""Processing"";				break;
-    case 200:	msg = ""OK"";					break;
-    case 201:	msg = ""Created"";				break;
-    case 202:	msg = ""Accepted"";				break;
-    case 203:	msg = ""Non-authoritative Information"";		break;
-    case 204:	msg = ""No Content"";				break;
-    case 205:	msg = ""Reset Content"";				break;
-    case 206:	msg = ""Partial Content"";			break;
-    case 207:	msg = ""Multi-Status"";				break;
-    case 208:	msg = ""Already Reported"";			break;
-    case 226:	msg = ""IM Used"";				break;
-    case 300:	msg = ""Multiple Choices"";			break;
-    case 301:	msg = ""Moved Permanently"";			break;
-    case 302:	msg = ""Found"";					break;
-    case 303:	msg = ""See Other"";				break;
-    case 304:	msg = ""Not Modified"";				break;
-    case 305:	msg = ""Use Proxy"";				break;
-    case 307:	msg = ""Temporary Redirect"";			break;
-    case 308:	msg = ""Permanent Redirect"";			break;
-    case 400:	msg = ""Bad Request"";				break;
-    case 401:	msg = ""Unauthorized"";				break;
-    case 402:	msg = ""Payment Required"";			break;
-    case 403:	msg = ""Forbidden"";				break;
-    case 404:	msg = ""Not Found"";				break;
-    case 405:	msg = ""Method Not Allowed"";			break;
-    case 406:	msg = ""Not Acceptable"";				break;
-    case 407:	msg = ""Proxy Authentication Required"";		break;
-    case 408:",
-49,0,non-vulnerable,,"static int setcalrgbspace(i_ctx_t * i_ctx_p, ref *r, int *stage, int *cont, int CIESubst) {     ref ",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of this vulnerability is the use of `dict_floats_param()` without proper bounds checking. This function can return an error code if the input dictionary contains invalid values, but it does not check for these errors and instead returns a default value in case of failure. This means that an attacker could potentially provide malicious input data that would cause the function to access memory outside of its intended bounds, leading to a buffer overflow or other security issues.
-
-The risky pattern is the use of `dict_floats_param()` without proper error handling. The function does not check for errors and instead relies on the default value being returned in case of failure. This means that an attacker could potentially provide malicious input data that would cause the function to access memory outside of its intended bounds, leading to a buffer overflow or other security issues.
-
-The potential impact of this vulnerability is significant, as it could allow an attacker to execute arbitrary code in the context of the current process, leading to complete compromise of the system.","To fix this vulnerability, we must ensure that `dict_floats_param()` is used properly and that any errors are properly handled. One possible solution is to check for errors returned by `dict_floats_param()` and handle them appropriately. For example, we could use a try-catch block to catch any exceptions thrown by the function and handle them accordingly. Additionally, we should also ensure that the input data provided to `dict_floats_param()` is properly validated to prevent malicious input from being passed to the function.",
-50,0,non-vulnerable,"CWE-190, CWE-787","STATIC void S_set_ANYOF_arg(pTHX_ RExC_state_t* const pRExC_state,                 regnode* const no",non-vulnerable,0,0.5808,0.4192,0.5808,True,disagrees,"The root cause of the potential vulnerability is the use of `newAV()` to allocate an array for storing data. This function can lead to memory leaks if not properly managed, and it is possible that the function does not properly free the allocated memory when it is no longer needed.
-
-The risky pattern in this function is the use of `newRV_noinc()` to create a reference to an array. This function creates a new reference to an array without incrementing its reference count, which can lead to unexpected behavior if the reference is used after the array has been freed.
-
-Potential impact: An attacker could exploit this vulnerability by creating a memory leak or using the reference to access freed memory, potentially leading to arbitrary code execution.","To fix this vulnerability, we need to ensure that the allocated array is properly freed when it is no longer needed. One way to do this is by using `newAV()` and `av_store()` instead of `newRV_noinc()`. This will allow us to store data in the array without creating a reference to it.
-
-Another option is to use `SvREFCNT_inc()` to increment the reference count of the array before storing it in the AV structure, and then decrementing its reference count when it is no longer needed. This will ensure that the memory is properly managed and freed when it is no longer needed.
-
-It's also important to note that we should use `av_undef()` to undefine the array before freeing it, this will help to avoid any potential issues with the AV structure.",
+index,cwe_sampled,ground_truth,roberta_label,roberta_confidence,codellama_agreement,deepseek_agreement,codellama_verdict,deepseek_verdict,llm_agreement,gemini_judge_verdict,final_verdict,correct,remediation_provided,latency_s,error
+1,CWE-416,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,90.41,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+2,CWE-401,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,106.18,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+3,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,66.37,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+4,CWE-362,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,44.82,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+5,CWE-415,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,77.98,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+6,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,49.38,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+7,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,41.98,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+8,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,193.39,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+9,CWE-200,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,991.35,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+10,CWE-415,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,True,231.93,
+11,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,48.9,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+12,CWE-476,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,491.51,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+13,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,61.46,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+14,CWE-415,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,536.34,
+15,CWE-20,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,47.96,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+16,CWE-190,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,62.51,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+17,CWE-401,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,49.48,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+18,CWE-399,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,85.64,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+19,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,46.15,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+20,CWE-415,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,90.42,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+21,CWE-200,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,True,36.96,
+22,CWE-200,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,76.31,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+23,CWE-399,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,49.28,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+24,CWE-416,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,53.34,
+25,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,57.37,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+26,CWE-401,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,480.09,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+27,CWE-399,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,1029.74,
+28,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,58.49,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+29,CWE-119,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,110.96,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+30,CWE-787,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,72.83,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+31,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,53.03,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+32,CWE-787,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,85.16,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+33,CWE-399,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,69.24,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+34,CWE-787,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,61.91,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+35,CWE-476,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,90.89,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+36,CWE-20,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,26.69,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+37,CWE-200,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,33.0,
+38,CWE-401,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,70.38,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+39,CWE-125,vulnerable,non-vulnerable,0.5808,disagrees,disagrees,vulnerable,vulnerable,True,,vulnerable,True,False,96.49,
+40,CWE-399,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,121.31,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+41,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,55.05,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+42,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,64.4,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+43,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,60.1,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+44,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,56.19,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+45,CWE-119,vulnerable,non-vulnerable,0.5808,disagrees,disagrees,vulnerable,vulnerable,True,,vulnerable,True,True,83.35,
+46,CWE-476,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,122.14,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+47,CWE-200,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,71.26,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+48,CWE-119,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,100.35,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+49,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,64.88,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+50,CWE-401,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,962.95,
+51,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,51.94,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+52,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,57.85,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+53,NONE,non-vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,True,False,26.84,
+54,CWE-416,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,24.8,
+55,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,124.27,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+56,CWE-20,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,23.77,
+57,CWE-399,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,62.63,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+58,CWE-190,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,58.94,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+59,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,89.71,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+60,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,41.79,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+61,CWE-416,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,65.06,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+62,CWE-415,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,54.27,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+63,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,50.16,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+64,CWE-200,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,60.96,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+65,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,72.57,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+66,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,56.41,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+67,CWE-20,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,48.0,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+68,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,31.1,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+69,NO_CWE,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,60.94,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+70,CWE-125,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,66.27,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+71,CWE-401,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,47.63,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+72,CWE-190,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,97.31,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+73,CWE-362,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,87.56,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+74,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,100.46,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+75,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,68.73,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+76,NO_CWE,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,93.0,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+77,CWE-401,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,45.44,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+78,CWE-125,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,103.39,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+79,CWE-476,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,95.18,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+80,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,42.22,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+81,CWE-190,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,49.25,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+82,NO_CWE,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,74.11,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+83,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,87.67,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+84,CWE-20,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,68.75,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+85,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,87.75,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+86,CWE-399,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,54.62,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+87,CWE-190,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,112.85,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+88,CWE-703,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,96.65,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+89,CWE-415,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,38.84,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+90,CWE-476,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,106.73,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+91,CWE-362,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,102.89,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+92,CWE-787,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,64.48,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+93,CWE-401,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,True,89.36,
+94,CWE-125,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,106.25,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+95,CWE-703,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,95.94,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+96,CWE-200,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,66.82,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+97,NONE,non-vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,True,False,23.66,
+98,CWE-190,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,75.08,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+99,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,41.57,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+100,CWE-362,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,105.11,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+101,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,46.75,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+102,CWE-476,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,50.49,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+103,CWE-415,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,92.5,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+104,CWE-200,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,49.51,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+105,CWE-20,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,51.72,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+106,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,74.72,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+107,CWE-415,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,57.42,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+108,CWE-787,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,44.88,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+109,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,56.09,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+110,CWE-703,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,99.75,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+111,CWE-125,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,70.65,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+112,CWE-415,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,63.61,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+113,CWE-787,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,28.69,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+114,CWE-787,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,77.95,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+115,CWE-119,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,62.47,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+116,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,81.84,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+117,CWE-190,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,True,45.14,
+118,CWE-416,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,52.07,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+119,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,30.83,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+120,CWE-703,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,79.38,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+121,CWE-416,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,95.27,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+122,CWE-119,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,47.52,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+123,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,72.2,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+124,CWE-476,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,22.79,
+125,CWE-200,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,74.91,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+126,CWE-787,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,80.68,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+127,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,51.41,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+128,CWE-703,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,61.9,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+129,CWE-416,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,23.03,
+130,CWE-476,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,True,100.12,
+131,CWE-20,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,46.01,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+132,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,37.6,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+133,CWE-20,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,102.71,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+134,CWE-20,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,35.55,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+135,CWE-362,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,75.64,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+136,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,67.76,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+137,NONE,non-vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,True,False,26.02,
+138,CWE-20,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,25.8,
+139,CWE-20,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,68.47,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+140,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,46.55,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+141,CWE-401,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,34.06,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+142,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,33.72,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+143,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,90.59,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+144,NONE,non-vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,True,False,23.58,
+145,CWE-703,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,45.15,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+146,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,45.23,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+147,CWE-362,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,51.43,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+148,CWE-415,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,96.77,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+149,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,48.8,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+150,CWE-787,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,86.59,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+151,CWE-190,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,33.9,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+152,CWE-20,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,33.88,
+153,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,48.16,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+154,CWE-703,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,55.06,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+155,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,63.19,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+156,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,62.5,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+157,CWE-401,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,74.78,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+158,CWE-476,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,117.39,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+159,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,73.87,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+160,CWE-703,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,66.16,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+161,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,51.8,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+162,CWE-476,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,88.47,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+163,CWE-401,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,28.13,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+164,CWE-476,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,117.79,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+165,CWE-416,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,19.15,
+166,CWE-787,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,89.0,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+167,CWE-119,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,98.1,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+168,CWE-190,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,82.01,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+169,CWE-119,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,70.55,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+170,CWE-415,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,42.64,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+171,CWE-399,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,57.4,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+172,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,42.03,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+173,CWE-787,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,87.95,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+174,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,43.79,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+175,CWE-119,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,44.91,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+176,CWE-125,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,93.7,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+177,CWE-125,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,85.9,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+178,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,36.53,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+179,CWE-399,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,68.99,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+180,CWE-190,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,22.64,
+181,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,40.38,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+182,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,39.73,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+183,CWE-190,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,76.57,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+184,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,87.12,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+185,NO_CWE,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,59.53,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+186,CWE-362,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,75.17,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+187,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,30.86,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+188,CWE-416,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,45.79,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+189,CWE-787,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,78.4,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+190,CWE-787,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,45.83,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+191,CWE-703,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,48.0,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+192,CWE-190,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,55.95,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+193,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,70.03,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+194,CWE-125,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,24.41,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+195,CWE-787,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,58.39,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+196,CWE-703,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,67.82,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+197,CWE-200,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,34.49,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+198,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,56.51,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+199,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,81.7,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+200,CWE-362,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,38.49,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+201,CWE-401,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,87.5,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+202,CWE-20,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,87.1,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+203,CWE-416,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,46.42,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+204,CWE-415,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,True,46.55,
+205,CWE-20,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,64.13,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+206,CWE-362,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,38.17,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+207,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,51.55,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+208,CWE-703,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,121.39,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+209,CWE-119,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,92.24,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+210,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,59.39,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+211,CWE-415,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,96.08,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+212,CWE-125,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,64.53,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+213,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,42.5,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+214,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,93.88,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+215,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,64.49,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+216,CWE-125,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,67.98,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+217,CWE-401,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,79.54,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+218,CWE-416,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,True,82.08,
+219,CWE-399,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,45.04,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+220,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,36.64,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+221,CWE-401,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,108.15,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+222,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,48.57,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+223,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,46.44,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+224,CWE-401,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,True,106.71,
+225,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,52.33,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+226,CWE-362,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,66.69,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+227,CWE-416,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,107.12,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+228,CWE-415,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,47.77,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+229,CWE-399,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,84.83,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+230,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,40.87,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+231,CWE-190,vulnerable,non-vulnerable,0.5808,disagrees,disagrees,vulnerable,vulnerable,True,,vulnerable,True,True,110.98,
+232,CWE-119,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,87.09,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+233,CWE-703,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,52.09,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+234,CWE-476,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,109.36,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+235,CWE-703,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,88.13,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+236,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,68.55,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+237,CWE-125,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,55.02,
+238,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,57.76,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+239,CWE-416,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,53.8,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+240,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,52.93,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+241,CWE-119,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,69.67,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+242,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,41.37,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+243,CWE-200,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,96.85,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+244,CWE-20,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,86.89,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+245,CWE-399,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,87.65,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+246,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,48.23,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+247,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,55.67,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+248,CWE-399,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,51.03,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+249,CWE-362,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,64.81,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+250,CWE-190,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,94.38,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+251,CWE-787,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,59.05,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+252,CWE-125,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,47.57,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+253,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,36.55,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+254,CWE-415,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,True,79.8,
+255,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,51.34,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+256,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,124.5,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+257,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,49.88,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+258,CWE-362,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,64.56,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+259,CWE-703,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,30.12,
+260,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,36.63,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+261,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,38.54,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+262,CWE-200,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,90.72,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+263,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,30.81,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+264,CWE-476,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,81.32,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+265,CWE-200,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,50.0,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+266,CWE-362,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,48.51,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+267,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,66.05,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+268,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,37.69,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+269,CWE-125,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,49.32,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+270,CWE-200,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,43.4,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+271,CWE-703,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,90.68,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+272,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,32.76,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+273,CWE-200,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,122.06,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+274,CWE-119,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,47.92,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+275,CWE-119,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,85.97,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+276,CWE-476,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,108.91,
+277,CWE-119,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,113.93,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+278,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,85.0,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+279,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,72.17,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+280,CWE-416,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,47.13,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+281,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,43.72,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+282,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,111.78,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+283,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,61.48,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+284,CWE-125,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,49.14,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+285,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,44.79,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+286,CWE-362,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,80.1,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+287,CWE-119,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,78.24,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+288,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,38.21,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+289,CWE-125,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,97.62,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+290,CWE-190,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,50.19,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+291,CWE-362,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,113.69,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+292,CWE-476,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,83.66,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+293,CWE-416,vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,False,False,20.11,
+294,NONE,non-vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,True,False,24.21,
+295,NONE,non-vulnerable,non-vulnerable,0.5808,agrees,agrees,non-vulnerable,non-vulnerable,True,,non-vulnerable,True,True,46.63,
+296,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,83.79,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+297,CWE-399,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,77.55,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+298,NONE,non-vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,39.05,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+299,CWE-399,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,94.71,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
+300,NO_CWE,vulnerable,non-vulnerable,0.5808,disagrees,agrees,vulnerable,non-vulnerable,False,,,,,41.24,404 Client Error: Not Found for url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDPCDb-7_XKbvJSTESLn7RqFltcZpD1Ryo
