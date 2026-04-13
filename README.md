@@ -15,13 +15,17 @@ Built on the [DiverseVul](https://github.com/wagner-group/diversevul) dataset (~
 fl_DiverseVul/
 ├── app.py                    # FastAPI service for RoBERTa inference (port 8000)
 ├── llm_explainer.py          # FastAPI service for CodeLlama explanation (port 8001)
-├── run_evaluation.py         # Batch evaluation script (50 balanced samples)
-├── evaluation_results.csv    # Saved evaluation results
+├── sample_diversevul.py      # Script to sample a balanced test batch
+├── run_batch_evaluation.py   # Large-scale pipeline batch evaluation
+├── compute_metrics.py        # Compute and visualize evaluation metrics
+├── test_batch.json           # Sampled dataset test batch
+├── evaluation_results.csv    # Raw evaluation results
+├── per_cwe_metrics.csv       # Evaluation results split by CWE
+├── evaluation_charts.png     # Visual evaluation plots
 ├── requirements.txt          # Python dependencies
 ├── models/
 │   ├── roberta/
 └──     └── notebook.ipynb    # Training notebook (RoBERTa fine-tuning)
-
 ```
 
 ---
@@ -164,19 +168,27 @@ The dataset is heavily imbalanced. A custom `Trainer` overrides `compute_loss()`
 
 ## 📊 Running Batch Evaluation
 
-The evaluation script samples 50 balanced examples (25 vulnerable + 25 non-vulnerable) and runs them through both services:
+The evaluation pipeline includes a robust set of tools for processing a sample batch, analyzing results with Models, and computing visual metrics.
 
+### 1. Sample the Dataset
+First, run the sampling tool to create a test dataset (e.g., ~200 vulnerable samples across top CWEs and ~100 clean examples).
 ```bash
-python run_evaluation.py --dataset /path/to/diversevul_20230702.json
+python sample_diversevul.py --input /path/to/diversevul_20230702.json --output test_batch.json
 ```
 
-To skip the LLM step (ML predictions only):
-
+### 2. Run Evaluation Over Services
+With `app.py` and `llm_explainer.py` already running (each terminal holding the respective port), send the test batch through the whole pipeline:
 ```bash
-python run_evaluation.py --dataset /path/to/diversevul_20230702.json --skip-llm
+python run_batch_evaluation.py --input test_batch.json --output evaluation_results.csv
 ```
+This script queries both APIs and records RoBERTa's predictions and LLM explanations into a CSV file.
 
-Results are saved to `evaluation_results.csv`.
+### 3. Compute Metrics & Visualizations
+To evaluate model performance, including per-CWE accuracy and an overview confusion matrix:
+```bash
+python compute_metrics.py --input evaluation_results.csv
+```
+This step outputs precision/recall metrics to your console, and locally generates `per_cwe_metrics.csv` and an `evaluation_charts.png` plot.
 
 ---
 
